@@ -151,6 +151,8 @@ function MessagesContent() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const groupAvatarInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingGroupAvatar, setUploadingGroupAvatar] = useState(false);
   const { on, off } = useRealtimeEvents();
 
   // Initial fetch (no polling!)
@@ -293,12 +295,21 @@ function MessagesContent() {
       }
     };
 
+    const handleGroupUpdated = (event: any) => {
+      const { groupChatId, group } = event.data;
+      if (groupId && parseInt(groupId) === groupChatId && group) {
+        // Update the group chat state with new data (e.g., new avatar)
+        setGroupChat(group);
+      }
+    };
+
     const unsubMessage = on('message', handleMessage);
     const unsubTyping = on('typing', handleTyping);
     const unsubReaction = on('reaction', handleReaction);
     const unsubMessageDeleted = on('message_deleted', handleMessageDeleted);
     const unsubConversationDeleted = on('conversation_deleted', handleConversationDeleted);
     const unsubGroupDeleted = on('group_deleted', handleGroupDeleted);
+    const unsubGroupUpdated = on('group_updated', handleGroupUpdated);
     
     return () => {
       unsubMessage();
@@ -307,6 +318,7 @@ function MessagesContent() {
       unsubMessageDeleted();
       unsubConversationDeleted();
       unsubGroupDeleted();
+      unsubGroupUpdated();
     };
   }, [on, dmId, groupId, router]);
 
@@ -696,6 +708,39 @@ function MessagesContent() {
     }
   };
 
+  const handleGroupAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !groupId) return;
+
+    setUploadingGroupAvatar(true);
+    try {
+      const formData = new FormData();
+      formData.append('avatar', file);
+
+      const res = await fetch(`/api/groupchats/${groupId}/avatar`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (res.ok) {
+        const updatedGroup = await res.json();
+        setGroupChat(updatedGroup);
+        alert('Group avatar updated successfully!');
+      } else {
+        const error = await res.json();
+        alert(error.error || 'Failed to upload avatar');
+      }
+    } catch (error) {
+      console.error('Failed to upload group avatar:', error);
+      alert('Failed to upload avatar');
+    } finally {
+      setUploadingGroupAvatar(false);
+      if (groupAvatarInputRef.current) {
+        groupAvatarInputRef.current.value = '';
+      }
+    }
+  };
+
   const handleAddReaction = async (messageId: number, emoji: string) => {
     try {
       const res = await fetch(`/api/messages/${messageId}/reactions`, {
@@ -1004,6 +1049,51 @@ function MessagesContent() {
                     ×
                   </button>
                 </div>
+
+                {/* Group Avatar Upload - Admin Only */}
+                {isGroupAdmin() && (
+                  <div className="mb-4">
+                    <h3 className="text-sm font-semibold mb-2" style={{ color: '#949ba4' }}>
+                      GROUP AVATAR
+                    </h3>
+                    <div className="flex items-center gap-4">
+                      {groupChat.avatar ? (
+                        <img
+                          src={groupChat.avatar}
+                          alt={groupChat.name}
+                          className="w-20 h-20 rounded-full"
+                        />
+                      ) : (
+                        <div
+                          className="w-20 h-20 rounded-full flex items-center justify-center text-white font-bold text-2xl"
+                          style={{ backgroundColor: '#5865f2' }}
+                        >
+                          {groupChat.name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <input
+                          ref={groupAvatarInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handleGroupAvatarUpload}
+                          className="hidden"
+                        />
+                        <button
+                          onClick={() => groupAvatarInputRef.current?.click()}
+                          disabled={uploadingGroupAvatar}
+                          className="px-4 py-2 rounded font-semibold hover:bg-blue-600 transition disabled:opacity-50"
+                          style={{ backgroundColor: '#5865f2', color: '#fff' }}
+                        >
+                          {uploadingGroupAvatar ? 'Uploading...' : 'Change Avatar'}
+                        </button>
+                        <p className="text-xs mt-2" style={{ color: '#949ba4' }}>
+                          Recommended: Square image, max 5MB
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="mb-4">
                   <h3 className="text-sm font-semibold mb-2" style={{ color: '#949ba4' }}>

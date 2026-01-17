@@ -121,11 +121,22 @@ export default function Sidebar() {
       setGroupChats((prev) => prev.filter((group) => group.id !== groupChatId));
     };
 
+    // Handle group chat updates (e.g., avatar changes)
+    const handleGroupUpdated = (event: any) => {
+      const { groupChatId, group } = event.data;
+      if (group) {
+        setGroupChats((prev) =>
+          prev.map((g) => (g.id === groupChatId ? { ...g, ...group } : g))
+        );
+      }
+    };
+
     const unsubConversation = on('conversation_update', handleConversationUpdate);
     const unsubGroup = on('group_update', handleGroupUpdate);
     const unsubMessage = on('message', handleMessage);
     const unsubConversationDeleted = on('conversation_deleted', handleConversationDeleted);
     const unsubGroupDeleted = on('group_deleted', handleGroupDeleted);
+    const unsubGroupUpdated = on('group_updated', handleGroupUpdated);
 
     return () => {
       unsubConversation();
@@ -133,6 +144,7 @@ export default function Sidebar() {
       unsubMessage();
       unsubConversationDeleted();
       unsubGroupDeleted();
+      unsubGroupUpdated();
     };
   }, [on, session]);
 

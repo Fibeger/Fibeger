@@ -11,6 +11,7 @@ export type EventType =
   | 'message'
   | 'conversation_update'
   | 'group_update'
+  | 'group_updated'
   | 'typing'
   | 'reaction'
   | 'message_deleted'
