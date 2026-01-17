@@ -1,261 +1,212 @@
 {
-  "title": "Personality Discovery Test",
-  "description": "Answer these questions to discover your personality type and earn a badge!",
+  "title": "AI PEAS Calculator",
+  "description": "Answer these questions to discover your PEAS (Personality, Ethnicity, Attitude, Sexuality) type and earn a badge!",
   "questions": [
     {
       "id": 1,
-      "question": "How do you prefer to spend your free time?",
+      "question": "What's your ethnicity?",
       "answers": [
         {
-          "text": "Exploring new places and meeting new people",
-          "weights": { "adventurer": 3, "socialite": 2, "leader": 1 }
+          "text": "Jewish",
+          "weights": { "jew": 1 }
         },
         {
-          "text": "Reading a good book or learning something new",
-          "weights": { "scholar": 3, "thinker": 2, "creative": 1 }
+          "text": "African American",
+          "weights": { "black": 1 }
         },
         {
-          "text": "Creating art, music, or writing",
-          "weights": { "creative": 3, "dreamer": 2, "scholar": 1 }
+          "text": "Sami",
+          "weights": { "sami": 1 }
         },
         {
-          "text": "Playing sports or staying active",
-          "weights": { "adventurer": 2, "competitor": 3, "leader": 1 }
+          "text": "Normal",
+          "weights": { "normal": 1 }
         }
       ]
     },
     {
       "id": 2,
-      "question": "When faced with a challenge, you typically:",
+      "question": "What's your most used everyday item?",
       "answers": [
         {
-          "text": "Take charge and create an action plan",
-          "weights": { "leader": 3, "thinker": 2, "competitor": 1 }
+          "text": "Crowbar",
+          "weights": { "black": 1 }
         },
         {
-          "text": "Analyze all possible solutions carefully",
-          "weights": { "thinker": 3, "scholar": 2, "strategist": 2 }
+          "text": "Reindeer",
+          "weights": { "sami": 1 }
         },
         {
-          "text": "Go with your gut feeling",
-          "weights": { "adventurer": 2, "dreamer": 2, "creative": 2 }
+          "text": "Perfume",
+          "weights": { "normal": 1 }
         },
         {
-          "text": "Ask for help and collaborate with others",
-          "weights": { "socialite": 3, "supporter": 3, "diplomat": 2 }
+          "text": "Cash register",
+          "weights": { "jew": 1 }
         }
       ]
     },
     {
       "id": 3,
-      "question": "In a group setting, you are most likely to be:",
+      "question": "If you could steal one thing, what would you steal?",
       "answers": [
         {
-          "text": "The one organizing and leading",
-          "weights": { "leader": 3, "strategist": 2, "diplomat": 1 }
+          "text": "Reindeer",
+          "weights": { "sami": 1 }
         },
         {
-          "text": "The one bringing everyone together",
-          "weights": { "socialite": 3, "supporter": 2, "diplomat": 2 }
+          "text": "Your heart",
+          "weights": { "normal": 1 }
         },
         {
-          "text": "The one coming up with creative ideas",
-          "weights": { "creative": 3, "dreamer": 2, "thinker": 1 }
+          "text": "Bisycle",
+          "weights": { "jew": 1 }
         },
         {
-          "text": "The one observing and analyzing",
-          "weights": { "thinker": 3, "scholar": 2, "strategist": 1 }
+          "text": "KFC Cash Register",
+          "weights": { "black": 1 }
         }
       ]
     },
     {
       "id": 4,
-      "question": "What motivates you the most?",
+      "question": "Who do you hate the most?",
       "answers": [
         {
-          "text": "Achieving goals and winning",
-          "weights": { "competitor": 3, "leader": 2, "adventurer": 1 }
+          "text": "Skatteetaten",
+          "weights": { "normal": 1 }
         },
         {
-          "text": "Helping others and making a difference",
-          "weights": { "supporter": 3, "diplomat": 2, "socialite": 1 }
+          "text": "Palestinians",
+          "weights": { "jew": 1 }
         },
         {
-          "text": "Learning and understanding the world",
-          "weights": { "scholar": 3, "thinker": 2, "strategist": 1 }
+          "text": "Police",
+          "weights": { "black": 1 }
         },
         {
-          "text": "Creating something unique and beautiful",
-          "weights": { "creative": 3, "dreamer": 2, "adventurer": 1 }
+          "text": "NVE",
+          "weights": { "sami": 1 }
         }
       ]
     },
     {
       "id": 5,
-      "question": "How do you handle stress?",
+      "question": "What's your preffered job?",
       "answers": [
         {
-          "text": "I face it head-on and push through",
-          "weights": { "competitor": 3, "leader": 2, "adventurer": 1 }
+          "text": "Accountant",
+          "weights": { "jew": 1 }
         },
         {
-          "text": "I talk it out with friends or family",
-          "weights": { "socialite": 3, "supporter": 2, "diplomat": 1 }
+          "text": "Trapping",
+          "weights": { "black": 1 }
         },
         {
-          "text": "I step back and think it through logically",
-          "weights": { "thinker": 3, "strategist": 2, "scholar": 1 }
+          "text": "NAV",
+          "weights": { "normal": 1 }
         },
         {
-          "text": "I escape into my imagination or hobbies",
-          "weights": { "dreamer": 3, "creative": 2, "scholar": 1 }
+          "text": "Reindeer herder",
+          "weights": { "sami": 1 }
         }
       ]
     },
     {
       "id": 6,
-      "question": "Your ideal weekend would involve:",
+      "question": "Are you good at saving money?",
       "answers": [
         {
-          "text": "An exciting adventure or trying something new",
-          "weights": { "adventurer": 3, "competitor": 1, "creative": 1 }
+          "text": "I spent my savings on a new Hellcat!",
+          "weights": { "black": 1 }
         },
         {
-          "text": "Hanging out with a large group of friends",
-          "weights": { "socialite": 3, "supporter": 1, "diplomat": 1 }
+          "text": "Not really, I spend it all on Moncler.",
+          "weights": { "normal": 1 }
         },
         {
-          "text": "Working on a personal project or hobby",
-          "weights": { "creative": 2, "scholar": 2, "thinker": 2 }
+          "text": "All my money comes from my reindeer business up in Kautokeino!",
+          "weights": { "sami": 1 }
         },
         {
-          "text": "Relaxing and daydreaming",
-          "weights": { "dreamer": 3, "creative": 1, "thinker": 1 }
+          "text": "Yes, I usually try not to spend any!",
+          "weights": { "jew": 1 }
         }
       ]
     },
     {
       "id": 7,
-      "question": "People would describe you as:",
+      "question": "What's your favourite between these options?",
       "answers": [
         {
-          "text": "Charismatic and outgoing",
-          "weights": { "socialite": 3, "leader": 2, "diplomat": 1 }
+          "text": "Womens rights",
+          "weights": { "normal": 1 }
         },
         {
-          "text": "Thoughtful and wise",
-          "weights": { "scholar": 3, "thinker": 2, "strategist": 1 }
+          "text": "Reindeed",
+          "weights": { "sami": 1 }
         },
         {
-          "text": "Bold and daring",
-          "weights": { "adventurer": 3, "competitor": 2, "leader": 1 }
+          "text": "Money",
+          "weights": { "jew": 1 }
         },
         {
-          "text": "Kind and empathetic",
-          "weights": { "supporter": 3, "diplomat": 2, "socialite": 1 }
+          "text": "KFC",
+          "weights": { "black": 1 }
         }
       ]
     },
     {
       "id": 8,
-      "question": "When making decisions, you rely most on:",
+      "question": "Who is your favourite black person?",
       "answers": [
         {
-          "text": "Logic and facts",
-          "weights": { "thinker": 3, "strategist": 2, "scholar": 2 }
+          "text": "Martin Luther King Jr.",
+          "weights": { "black": 1 }
         },
         {
-          "text": "Your intuition and feelings",
-          "weights": { "dreamer": 3, "creative": 2, "supporter": 1 }
+          "text": "Obama",
+          "weights": { "normal": 1 }
         },
         {
-          "text": "Past experiences and patterns",
-          "weights": { "strategist": 3, "thinker": 2, "leader": 1 }
+          "text": "Kevin Hart",
+          "weights": { "jew": 1 }
         },
         {
-          "text": "What's best for everyone involved",
-          "weights": { "diplomat": 3, "supporter": 2, "socialite": 1 }
+          "text": "Reindeer",
+          "weights": { "sami": 1 }
         }
       ]
     }
   ],
   "badges": [
     {
-      "id": "leader",
-      "name": "The Leader",
-      "emoji": "👑",
-      "description": "Natural-born leader who takes charge and inspires others",
+      "id": "jew",
+      "name": "The Jew",
+      "emoji": "🕎",
+      "description": "Jewish motherfucker who maintains the economy of the world",
       "color": "#FFD700"
     },
     {
-      "id": "scholar",
-      "name": "The Scholar",
-      "emoji": "📚",
-      "description": "Knowledge seeker with an insatiable curiosity",
+      "id": "normal",
+      "name": "The Normal",
+      "emoji": "👱🏻",
+      "description": "White motherfucker who brings order to the world",
       "color": "#4169E1"
     },
     {
       "id": "creative",
-      "name": "The Creative",
-      "emoji": "🎨",
-      "description": "Imaginative soul who brings beauty to the world",
+      "name": "The Nigger",
+      "emoji": "🍗",
+      "description": "Black motherfucker who brings crime to the world",
       "color": "#FF69B4"
     },
     {
       "id": "adventurer",
-      "name": "The Adventurer",
-      "emoji": "🗺️",
-      "description": "Bold explorer who thrives on new experiences",
+      "name": "The Sami",
+      "emoji": "🦌",
+      "description": "Sami motherfuckers who brought Johannes to the world",
       "color": "#FF8C00"
-    },
-    {
-      "id": "socialite",
-      "name": "The Socialite",
-      "emoji": "🎭",
-      "description": "People person who lights up every room",
-      "color": "#FF1493"
-    },
-    {
-      "id": "thinker",
-      "name": "The Thinker",
-      "emoji": "🧠",
-      "description": "Analytical mind who solves complex problems",
-      "color": "#9370DB"
-    },
-    {
-      "id": "competitor",
-      "name": "The Competitor",
-      "emoji": "🏆",
-      "description": "Driven achiever who loves to win",
-      "color": "#DC143C"
-    },
-    {
-      "id": "dreamer",
-      "name": "The Dreamer",
-      "emoji": "✨",
-      "description": "Visionary with boundless imagination",
-      "color": "#87CEEB"
-    },
-    {
-      "id": "supporter",
-      "name": "The Supporter",
-      "emoji": "🤝",
-      "description": "Caring soul who lifts others up",
-      "color": "#32CD32"
-    },
-    {
-      "id": "diplomat",
-      "name": "The Diplomat",
-      "emoji": "🕊️",
-      "description": "Peacemaker who brings harmony to all",
-      "color": "#20B2AA"
-    },
-    {
-      "id": "strategist",
-      "name": "The Strategist",
-      "emoji": "♟️",
-      "description": "Master planner who thinks several steps ahead",
-      "color": "#2F4F4F"
     }
   ]
 }

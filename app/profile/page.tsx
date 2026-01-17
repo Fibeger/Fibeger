@@ -688,7 +688,7 @@ export default function ProfilePage() {
                           className="w-full px-8 py-3 text-white rounded-md transition font-medium"
                           style={{ backgroundColor: profile.personalityBadge ? 'var(--text-tertiary)' : profile.themeColor || 'var(--accent)' }}
                         >
-                          {profile.personalityBadge ? '🔄 Retake Test' : '✨ Take Personality Test'}
+                          {profile.personalityBadge ? '🔄 Retake Test' : '✨ Take PEAS Test'}
                         </button>
                       </>
                     )}
