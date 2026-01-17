@@ -16,7 +16,8 @@ export type EventType =
   | 'reaction'
   | 'message_deleted'
   | 'conversation_deleted'
-  | 'group_deleted';
+  | 'group_deleted'
+  | 'friend_removed';
 
 export interface EventData {
   userId: number;

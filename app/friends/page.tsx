@@ -3,6 +3,7 @@
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import { useRealtimeEvents } from '@/app/hooks/useRealtimeEvents';
 
 interface UserPreview {
   id: number;
@@ -21,6 +22,7 @@ interface FriendRequest {
 export default function FriendsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const { on, off } = useRealtimeEvents();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<UserPreview[]>([]);
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
@@ -42,6 +44,20 @@ export default function FriendsPage() {
     fetchFriendRequests();
     fetchFriends();
   }, [status, session, router]);
+
+  // Listen for real-time friend removal events
+  useEffect(() => {
+    const handleFriendRemoved = (event: any) => {
+      // Refresh the friends list when someone removes you as a friend
+      fetchFriends();
+      const removedByName = event.data.removedByNickname || event.data.removedByUsername;
+      setMessage(`${removedByName} removed you from their friends`);
+      setTimeout(() => setMessage(''), 5000);
+    };
+
+    on('friend_removed', handleFriendRemoved);
+    return () => off('friend_removed', handleFriendRemoved);
+  }, [on, off]);
 
   const fetchFriendRequests = async () => {
     try {
@@ -164,6 +180,31 @@ export default function FriendsPage() {
     }
   };
 
+  const handleRemoveFriend = async (friendId: number, friendName: string) => {
+    if (!confirm(`Are you sure you want to remove ${friendName} from your friends?`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/friends?friendId=${friendId}`, {
+        method: 'DELETE',
+      });
+
+      if (res.ok) {
+        setMessage('✓ Friend removed successfully');
+        fetchFriends(); // Refresh the friends list
+        setTimeout(() => setMessage(''), 3000);
+      } else {
+        const error = await res.json();
+        setMessage(error.error || 'Failed to remove friend');
+        setTimeout(() => setMessage(''), 3000);
+      }
+    } catch (error) {
+      setMessage('Error removing friend');
+      setTimeout(() => setMessage(''), 3000);
+    }
+  };
+
   if (status === "loading" || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -228,13 +269,22 @@ export default function FriendsPage() {
                       <p className="text-sm font-medium" style={{ color: 'var(--text-tertiary)' }}>@{friend.username}</p>
                     </div>
                   </div>
-                  <button
-                    onClick={() => handleMessageFriend(friend.id)}
-                    className="w-full sm:w-auto px-5 py-2.5 text-white text-sm font-medium rounded-md transition hover:opacity-90"
-                    style={{ backgroundColor: 'var(--accent)' }}
-                  >
-                    Message
-                  </button>
+                  <div className="flex gap-3 w-full sm:w-auto">
+                    <button
+                      onClick={() => handleMessageFriend(friend.id)}
+                      className="flex-1 sm:flex-none px-5 py-2.5 text-white text-sm font-medium rounded-md transition hover:opacity-90"
+                      style={{ backgroundColor: 'var(--accent)' }}
+                    >
+                      Message
+                    </button>
+                    <button
+                      onClick={() => handleRemoveFriend(friend.id, friend.nickname || friend.username)}
+                      className="flex-1 sm:flex-none px-5 py-2.5 text-white text-sm font-medium rounded-md transition hover:opacity-90"
+                      style={{ backgroundColor: 'var(--danger)' }}
+                    >
+                      Remove
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
