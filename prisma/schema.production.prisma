@@ -35,6 +35,7 @@ model User {
   messages              Message[]
   usernameHistory       UsernameHistory[]
   notifications         Notification[]
+  reactions             Reaction[]
 }
 
 model Friend {
@@ -77,6 +78,7 @@ model ConversationMember {
   conversationId Int
   userId         Int
   joinedAt       DateTime @default(now())
+  lastReadMessageId Int?  // Track the last message read by this user
 
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   user           User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -102,6 +104,7 @@ model GroupChatMember {
   userId     Int
   role       String   @default("member") // member, admin
   joinedAt   DateTime @default(now())
+  lastReadMessageId Int?  // Track the last message read by this user
 
   groupChat  GroupChat @relation(fields: [groupChatId], references: [id], onDelete: Cascade)
   user       User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -112,15 +115,34 @@ model GroupChatMember {
 model Message {
   id             Int      @id @default(autoincrement())
   content        String
+  attachments    String?  // JSON array of attachment URLs
   senderId       Int
   conversationId Int?
   groupChatId    Int?
+  replyToId      Int?     // ID of the message being replied to
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   sender       User @relation(fields: [senderId], references: [id], onDelete: Cascade)
   conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   groupChat    GroupChat? @relation(fields: [groupChatId], references: [id], onDelete: Cascade)
+  replyTo      Message? @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies      Message[] @relation("MessageReplies")
+  reactions    Reaction[]
+}
+
+model Reaction {
+  id        Int      @id @default(autoincrement())
+  messageId Int
+  userId    Int
+  emoji     String   // The emoji character
+  createdAt DateTime @default(now())
+
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
 }
 
 model UsernameHistory {
