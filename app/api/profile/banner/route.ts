@@ -2,9 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { prisma } from "@/app/lib/prisma";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { writeFile, unlink } from "fs/promises";
-import { join } from "path";
-import { existsSync } from "fs";
+import { put } from "@vercel/blob";
+import crypto from "crypto";
+import { writeFile, mkdir } from "fs/promises";
+import path from "path";
+
+/**
+ * Calculate SHA-256 hash of a file
+ */
+async function calculateFileHash(file: File): Promise<string> {
+  const arrayBuffer = await file.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+  const hash = crypto.createHash('sha256');
+  hash.update(buffer);
+  return hash.digest('hex');
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -40,49 +52,84 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Get current user to delete old banner
-    const currentUser = await prisma.user.findUnique({
-      where: { id: parseInt(session.user.id) },
-      select: { banner: true },
+    // Calculate file hash for deduplication
+    const fileHash = await calculateFileHash(file);
+
+    // Check if file with this hash already exists
+    const existingFile = await prisma.fileBlob.findUnique({
+      where: { hash: fileHash },
     });
 
-    // Delete old banner if exists
-    if (currentUser?.banner) {
-      const oldPath = join(process.cwd(), "public", currentUser.banner);
-      if (existsSync(oldPath)) {
-        try {
-          await unlink(oldPath);
-        } catch (error) {
-          console.error("Failed to delete old banner:", error);
-        }
+    let bannerUrl: string;
+
+    if (existingFile) {
+      // File already exists, use existing URL
+      bannerUrl = existingFile.url;
+      console.log(`Banner deduplication: Reusing existing file ${fileHash}`);
+    } else {
+      // File doesn't exist, upload it
+      const timestamp = Date.now();
+      const userId = session.user.id;
+      const ext = file.name.split(".").pop() || "jpg";
+      const filename = `banners/${userId}-${timestamp}.${ext}`;
+
+      // Check if Vercel Blob is configured
+      const useBlobStorage = !!process.env.BLOB_READ_WRITE_TOKEN;
+
+      if (useBlobStorage) {
+        // Upload to Vercel Blob
+        const blob = await put(filename, file, {
+          access: "public",
+        });
+
+        bannerUrl = blob.url;
+
+        // Store file metadata in database
+        await prisma.fileBlob.create({
+          data: {
+            hash: fileHash,
+            url: blob.url,
+            contentType: file.type,
+            size: file.size,
+            uploadedBy: parseInt(session.user.id),
+          },
+        });
+
+        console.log(`Banner uploaded to Vercel Blob: ${fileHash} -> ${blob.url}`);
+      } else {
+        // Use local file storage
+        const uploadsDir = path.join(process.cwd(), 'public', 'uploads', 'banners');
+        
+        // Ensure directory exists
+        await mkdir(uploadsDir, { recursive: true });
+
+        // Save file locally
+        const localFilename = `${userId}-${timestamp}.${ext}`;
+        const filePath = path.join(uploadsDir, localFilename);
+        
+        const arrayBuffer = await file.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        await writeFile(filePath, buffer);
+
+        // Create public URL
+        bannerUrl = `/uploads/banners/${localFilename}`;
+
+        // Store file metadata in database
+        await prisma.fileBlob.create({
+          data: {
+            hash: fileHash,
+            url: bannerUrl,
+            contentType: file.type,
+            size: file.size,
+            uploadedBy: parseInt(session.user.id),
+          },
+        });
+
+        console.log(`Banner uploaded locally: ${fileHash} -> ${bannerUrl}`);
       }
     }
 
-    // Read file buffer
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-
-    // Create unique filename
-    const timestamp = Date.now();
-    const originalName = file.name.replace(/\s+/g, "-");
-    const filename = `${session.user.id}-${timestamp}-${originalName}`;
-    const uploadDir = join(process.cwd(), "public", "uploads", "banners");
-    const filepath = join(uploadDir, filename);
-
-    // Ensure directory exists
-    try {
-      const { mkdirSync } = await import("fs");
-      mkdirSync(uploadDir, { recursive: true });
-    } catch (dirError) {
-      console.error("Error creating directory:", dirError);
-      // Directory might already exist, continue
-    }
-
-    // Write file
-    await writeFile(filepath, buffer);
-
     // Update database
-    const bannerUrl = `/uploads/banners/${filename}`;
     const updatedUser = await prisma.user.update({
       where: { id: parseInt(session.user.id) },
       data: { banner: bannerUrl },
@@ -124,25 +171,11 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get current user
-    const currentUser = await prisma.user.findUnique({
-      where: { id: parseInt(session.user.id) },
-      select: { banner: true },
-    });
+    // Note: We don't delete the file from Vercel Blob or local storage
+    // because of deduplication - other users might be using the same file
+    // The file will remain in storage but won't be referenced by this user
 
-    // Delete banner file if exists
-    if (currentUser?.banner) {
-      const bannerPath = join(process.cwd(), "public", currentUser.banner);
-      if (existsSync(bannerPath)) {
-        try {
-          await unlink(bannerPath);
-        } catch (error) {
-          console.error("Failed to delete banner:", error);
-        }
-      }
-    }
-
-    // Update database
+    // Update database to remove banner reference
     const updatedUser = await prisma.user.update({
       where: { id: parseInt(session.user.id) },
       data: { banner: null },
