@@ -50,6 +50,21 @@ export async function PUT(req: NextRequest) {
     const body = await req.json();
     const { nickname, bio, avatar } = body;
 
+    // Validate character limits
+    if (nickname !== undefined && nickname !== null && nickname.length > 25) {
+      return NextResponse.json(
+        { error: "Display name must be 25 characters or less" },
+        { status: 400 }
+      );
+    }
+
+    if (bio !== undefined && bio !== null && bio.length > 355) {
+      return NextResponse.json(
+        { error: "Bio must be 355 characters or less" },
+        { status: 400 }
+      );
+    }
+
     const updates: any = {};
     if (nickname !== undefined) updates.nickname = nickname;
     if (bio !== undefined) updates.bio = bio;

@@ -53,7 +53,37 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    return NextResponse.json(conversations);
+    // Calculate unread count for each conversation
+    const conversationsWithUnread = await Promise.all(
+      conversations.map(async (conversation) => {
+        // Find current user's membership to get lastReadMessageId
+        const userMembership = conversation.members.find(
+          (m) => m.userId === userId
+        );
+
+        let unreadCount = 0;
+
+        if (userMembership) {
+          // Count messages after lastReadMessageId
+          unreadCount = await prisma.message.count({
+            where: {
+              conversationId: conversation.id,
+              senderId: { not: userId }, // Don't count own messages
+              ...(userMembership.lastReadMessageId
+                ? { id: { gt: userMembership.lastReadMessageId } }
+                : {}),
+            },
+          });
+        }
+
+        return {
+          ...conversation,
+          unreadCount,
+        };
+      })
+    );
+
+    return NextResponse.json(conversationsWithUnread);
   } catch (error) {
     console.error("Get conversations error:", error);
     return NextResponse.json(

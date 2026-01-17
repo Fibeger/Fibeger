@@ -10,7 +10,9 @@ export type EventType =
   | 'notification'
   | 'message'
   | 'conversation_update'
-  | 'group_update';
+  | 'group_update'
+  | 'typing'
+  | 'reaction';
 
 export interface EventData {
   userId: number;

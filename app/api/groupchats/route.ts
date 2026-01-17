@@ -52,7 +52,37 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    return NextResponse.json(groupChats);
+    // Calculate unread count for each group chat
+    const groupChatsWithUnread = await Promise.all(
+      groupChats.map(async (groupChat) => {
+        // Find current user's membership to get lastReadMessageId
+        const userMembership = groupChat.members.find(
+          (m) => m.userId === userId
+        );
+
+        let unreadCount = 0;
+
+        if (userMembership) {
+          // Count messages after lastReadMessageId
+          unreadCount = await prisma.message.count({
+            where: {
+              groupChatId: groupChat.id,
+              senderId: { not: userId }, // Don't count own messages
+              ...(userMembership.lastReadMessageId
+                ? { id: { gt: userMembership.lastReadMessageId } }
+                : {}),
+            },
+          });
+        }
+
+        return {
+          ...groupChat,
+          unreadCount,
+        };
+      })
+    );
+
+    return NextResponse.json(groupChatsWithUnread);
   } catch (error) {
     console.error("Get group chats error:", error);
     return NextResponse.json(

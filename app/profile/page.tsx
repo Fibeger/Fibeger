@@ -258,9 +258,14 @@ export default function ProfilePage() {
                 <h2 className="text-2xl font-bold mb-8" style={{ color: 'var(--text-primary)' }}>Edit Profile</h2>
                 <form onSubmit={handleUpdate} className="space-y-7">
                   <div>
-                    <label className="block text-sm font-medium mb-3" style={{ color: 'var(--text-secondary)' }}>
-                      Display Name
-                    </label>
+                    <div className="flex justify-between items-center mb-3">
+                      <label className="block text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+                        Display Name
+                      </label>
+                      <span className="text-xs font-medium" style={{ color: formData.nickname.length > 25 ? 'var(--danger)' : 'var(--text-tertiary)' }}>
+                        {formData.nickname.length}/25
+                      </span>
+                    </div>
                     <input
                       type="text"
                       value={formData.nickname}
@@ -268,20 +273,27 @@ export default function ProfilePage() {
                         setFormData({ ...formData, nickname: e.target.value })
                       }
                       placeholder="Your display name"
+                      maxLength={25}
                       className="w-full px-5 py-3 rounded-md"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium mb-3" style={{ color: 'var(--text-secondary)' }}>
-                      Bio
-                    </label>
+                    <div className="flex justify-between items-center mb-3">
+                      <label className="block text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+                        Bio
+                      </label>
+                      <span className="text-xs font-medium" style={{ color: formData.bio.length > 355 ? 'var(--danger)' : 'var(--text-tertiary)' }}>
+                        {formData.bio.length}/355
+                      </span>
+                    </div>
                     <textarea
                       value={formData.bio}
                       onChange={(e) =>
                         setFormData({ ...formData, bio: e.target.value })
                       }
                       placeholder="Tell us about yourself..."
+                      maxLength={355}
                       className="w-full px-5 py-3 rounded-md"
                       rows={4}
                     />

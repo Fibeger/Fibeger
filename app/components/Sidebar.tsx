@@ -25,6 +25,7 @@ interface Conversation {
   id: number;
   members: { user: User }[];
   messages: Message[];
+  unreadCount?: number;
 }
 
 interface GroupChat {
@@ -34,6 +35,7 @@ interface GroupChat {
   avatar: string | null;
   members: { user: User; role: string }[];
   messages: Message[];
+  unreadCount?: number;
 }
 
 export default function Sidebar() {
@@ -401,6 +403,7 @@ export default function Sidebar() {
                 conversations.map((conv) => {
                   const otherUser = getOtherUser(conv);
                   const isConvActive = isMessageActive(conv.id, 'dm');
+                  const hasUnread = (conv.unreadCount || 0) > 0;
                   
                   return (
                     <Link
@@ -439,9 +442,20 @@ export default function Sidebar() {
                           {(otherUser?.username?.charAt(0) || 'U').toUpperCase()}
                         </div>
                       )}
-                      <span className="text-sm truncate flex-1">
+                      <span className="text-sm truncate flex-1" style={{ 
+                        fontWeight: hasUnread ? 600 : 'normal',
+                        color: hasUnread && !isConvActive ? '#f2f3f5' : undefined
+                      }}>
                         {otherUser?.nickname || otherUser?.username}
                       </span>
+                      {hasUnread && (
+                        <div 
+                          className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+                          style={{ backgroundColor: '#f23f42', color: '#ffffff' }}
+                        >
+                          {conv.unreadCount! > 9 ? '9+' : conv.unreadCount}
+                        </div>
+                      )}
                     </Link>
                   );
                 })
@@ -573,6 +587,7 @@ export default function Sidebar() {
               ) : (
                 groupChats.map((group) => {
                   const isGroupActive = isMessageActive(group.id, 'group');
+                  const hasUnread = (group.unreadCount || 0) > 0;
                   
                   return (
                     <Link
@@ -611,9 +626,20 @@ export default function Sidebar() {
                           {group.name.charAt(0).toUpperCase()}
                         </div>
                       )}
-                      <span className="text-sm truncate flex-1">
+                      <span className="text-sm truncate flex-1" style={{ 
+                        fontWeight: hasUnread ? 600 : 'normal',
+                        color: hasUnread && !isGroupActive ? '#f2f3f5' : undefined
+                      }}>
                         {group.name}
                       </span>
+                      {hasUnread && (
+                        <div 
+                          className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+                          style={{ backgroundColor: '#f23f42', color: '#ffffff' }}
+                        >
+                          {group.unreadCount! > 9 ? '9+' : group.unreadCount}
+                        </div>
+                      )}
                     </Link>
                   );
                 })

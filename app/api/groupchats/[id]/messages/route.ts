@@ -49,6 +49,30 @@ export async function GET(
             avatar: true,
           },
         },
+        reactions: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                nickname: true,
+                avatar: true,
+              }
+            }
+          }
+        },
+        replyTo: {
+          include: {
+            sender: {
+              select: {
+                id: true,
+                username: true,
+                nickname: true,
+                avatar: true,
+              }
+            }
+          }
+        }
       },
       orderBy: {
         createdAt: "asc",
@@ -81,13 +105,13 @@ export async function POST(
 
     const { id } = await params;
     const body = await req.json();
-    const { content } = body;
-    console.log('Request data - groupId:', id, 'content length:', content?.length);
+    const { content, attachments, replyToId } = body;
+    console.log('Request data - groupId:', id, 'content length:', content?.length, 'attachments:', attachments?.length || 0);
 
-    if (!content || content.trim().length === 0) {
-      console.log('Error: Empty message content');
+    if ((!content || content.trim().length === 0) && (!attachments || attachments.length === 0)) {
+      console.log('Error: Empty message content and no attachments');
       return NextResponse.json(
-        { error: "Message content is required" },
+        { error: "Message content or attachments required" },
         { status: 400 }
       );
     }
@@ -117,9 +141,11 @@ export async function POST(
     console.log('Creating message...');
     const message = await prisma.message.create({
       data: {
-        content,
+        content: content || '',
+        attachments: attachments ? JSON.stringify(attachments) : null,
         senderId: userId,
         groupChatId,
+        replyToId: replyToId ? parseInt(replyToId) : null,
       },
       include: {
         sender: {
@@ -130,6 +156,30 @@ export async function POST(
             avatar: true,
           },
         },
+        reactions: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                nickname: true,
+                avatar: true,
+              }
+            }
+          }
+        },
+        replyTo: {
+          include: {
+            sender: {
+              select: {
+                id: true,
+                username: true,
+                nickname: true,
+                avatar: true,
+              }
+            }
+          }
+        }
       },
     });
     console.log('Message created successfully, id:', message.id);
@@ -152,13 +202,17 @@ export async function POST(
 
     // Create notifications for other members
     const senderName = message.sender.nickname || message.sender.username;
+    const notificationMessage = content 
+      ? `${senderName}: ${content.substring(0, 50)}${content.length > 50 ? "..." : ""}`
+      : `${senderName} sent ${attachments?.length || 0} attachment(s)`;
+    
     const notificationPromises = members.map((member) =>
       prisma.notification.create({
         data: {
           userId: member.userId,
           type: "message",
           title: `New Message in ${groupChat.name}`,
-          message: `${senderName}: ${content.substring(0, 50)}${content.length > 50 ? "..." : ""}`,
+          message: notificationMessage,
           link: `/groups?groupchat=${groupChatId}`,
         },
       })

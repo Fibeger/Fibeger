@@ -5,13 +5,17 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRealtimeEvents } from '@/app/hooks/useRealtimeEvents';
 
-// Utility function to detect and linkify URLs
-function linkifyText(text: string) {
-  const urlRegex = /(https?:\/\/[^\s]+)/g;
-  const parts = text.split(urlRegex);
+// Utility function to detect and linkify URLs and mentions
+function linkifyText(text: string, router: any) {
+  // Combined regex for URLs, @username, and @everyone
+  const combinedRegex = /(https?:\/\/[^\s]+)|(@everyone)|(@[a-zA-Z0-9_]+)/g;
+  const parts = text.split(combinedRegex);
   
   return parts.map((part, index) => {
-    if (part.match(urlRegex)) {
+    if (!part) return null;
+    
+    // Check if it's a URL
+    if (part.match(/^https?:\/\//)) {
       return (
         <a
           key={index}
@@ -25,6 +29,42 @@ function linkifyText(text: string) {
         </a>
       );
     }
+    
+    // Check if it's @everyone
+    if (part === '@everyone') {
+      return (
+        <span
+          key={index}
+          className="font-semibold px-1 rounded"
+          style={{ 
+            backgroundColor: 'rgba(88, 101, 242, 0.3)', 
+            color: '#5865f2',
+            cursor: 'default'
+          }}
+        >
+          {part}
+        </span>
+      );
+    }
+    
+    // Check if it's @username
+    if (part.match(/^@[a-zA-Z0-9_]+$/)) {
+      const username = part.substring(1); // Remove @
+      return (
+        <button
+          key={index}
+          onClick={() => router.push(`/profile/${username}`)}
+          className="font-semibold px-1 rounded hover:underline"
+          style={{ 
+            backgroundColor: 'rgba(88, 101, 242, 0.3)', 
+            color: '#5865f2'
+          }}
+        >
+          {part}
+        </button>
+      );
+    }
+    
     return part;
   });
 }
@@ -36,13 +76,34 @@ interface User {
   avatar: string | null;
 }
 
+interface Attachment {
+  url: string;
+  type: string;
+  name: string;
+  size: number;
+}
+
+interface Reaction {
+  id: number;
+  emoji: string;
+  userId: number;
+  user: User;
+}
+
 interface Message {
   id: number;
   content: string;
+  attachments?: string | null; // JSON string
   sender: User;
   createdAt: string;
   isPending?: boolean; // For optimistic updates
   tempId?: string; // Temporary ID for optimistic messages
+  reactions?: Reaction[];
+  replyTo?: {
+    id: number;
+    content: string;
+    sender: User;
+  } | null;
 }
 
 interface Conversation {
@@ -76,7 +137,20 @@ function MessagesContent() {
   const [friends, setFriends] = useState<User[]>([]);
   const [showAddMember, setShowAddMember] = useState(false);
   const [addingMember, setAddingMember] = useState(false);
+  const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState<number | null>(null);
+  const [hoveredMessage, setHoveredMessage] = useState<number | null>(null);
+  const [mentionSuggestions, setMentionSuggestions] = useState<User[]>([]);
+  const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState('');
+  const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const { on, off } = useRealtimeEvents();
 
   // Initial fetch (no polling!)
@@ -106,17 +180,104 @@ function MessagesContent() {
     const handleMessage = (event: any) => {
       const messageConvId = event.data.conversationId;
       const messageGroupId = event.data.groupChatId;
+      const newMessage = event.data.message;
 
       // Only update if the message is for the current conversation/group
       if (dmId && messageConvId === parseInt(dmId)) {
-        fetchMessages(parseInt(dmId), 'dm');
+        // Directly add the message to state for immediate display
+        if (newMessage) {
+          setMessages((prev) => {
+            // Check if message already exists (avoid duplicates)
+            const messageExists = prev.some((msg) => msg.id === newMessage.id);
+            if (messageExists) return prev;
+            return [...prev, newMessage];
+          });
+        }
+        // Mark as read since user is viewing this conversation
+        markAsRead(parseInt(dmId), 'dm');
       } else if (groupId && messageGroupId === parseInt(groupId)) {
-        fetchMessages(parseInt(groupId), 'group');
+        // Directly add the message to state for immediate display
+        if (newMessage) {
+          setMessages((prev) => {
+            // Check if message already exists (avoid duplicates)
+            const messageExists = prev.some((msg) => msg.id === newMessage.id);
+            if (messageExists) return prev;
+            return [...prev, newMessage];
+          });
+        }
+        // Mark as read since user is viewing this group
+        markAsRead(parseInt(groupId), 'group');
       }
     };
 
+    const handleTyping = (event: any) => {
+      const typingConvId = event.data.conversationId;
+      const typingGroupId = event.data.groupChatId;
+      const { userName, isTyping } = event.data;
+
+      // Only update if the typing is for the current conversation/group
+      if ((dmId && typingConvId === parseInt(dmId)) || (groupId && typingGroupId === parseInt(groupId))) {
+        setTypingUsers((prev) => {
+          const newSet = new Set(prev);
+          if (isTyping) {
+            newSet.add(userName);
+          } else {
+            newSet.delete(userName);
+          }
+          return newSet;
+        });
+
+        // Auto-remove typing indicator after 5 seconds
+        if (isTyping) {
+          setTimeout(() => {
+            setTypingUsers((prev) => {
+              const newSet = new Set(prev);
+              newSet.delete(userName);
+              return newSet;
+            });
+          }, 5000);
+        }
+      }
+    };
+
+    const handleReaction = (event: any) => {
+      const { messageId, reaction, action, userId, emoji } = event.data;
+      
+      setMessages((prev) => 
+        prev.map((msg) => {
+          if (msg.id === messageId) {
+            const currentReactions = msg.reactions || [];
+            if (action === 'add') {
+              // Add new reaction if it doesn't exist
+              const exists = currentReactions.some(
+                (r) => r.userId === reaction.userId && r.emoji === reaction.emoji
+              );
+              if (!exists) {
+                return { ...msg, reactions: [...currentReactions, reaction] };
+              }
+            } else if (action === 'remove') {
+              // Remove reaction
+              return {
+                ...msg,
+                reactions: currentReactions.filter(
+                  (r) => !(r.userId === userId && r.emoji === emoji)
+                ),
+              };
+            }
+          }
+          return msg;
+        })
+      );
+    };
+
     on('message', handleMessage);
-    return () => off('message', handleMessage);
+    on('typing', handleTyping);
+    on('reaction', handleReaction);
+    return () => {
+      off('message', handleMessage);
+      off('typing', handleTyping);
+      off('reaction', handleReaction);
+    };
   }, [on, off, dmId, groupId]);
 
   // Auto-scroll to bottom when messages change
@@ -133,6 +294,7 @@ function MessagesContent() {
         setConversation(conv || null);
         if (conv) {
           fetchMessages(id, 'dm');
+          markAsRead(id, 'dm');
         }
       }
     } catch (error) {
@@ -151,6 +313,7 @@ function MessagesContent() {
         setGroupChat(group || null);
         if (group) {
           fetchMessages(id, 'group');
+          markAsRead(id, 'group');
         }
       }
     } catch (error) {
@@ -183,15 +346,112 @@ function MessagesContent() {
     }
   };
 
+  const markAsRead = async (id: number, type: 'dm' | 'group') => {
+    try {
+      await fetch('/api/messages/mark-read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversationId: type === 'dm' ? id : undefined,
+          groupChatId: type === 'group' ? id : undefined,
+        }),
+      });
+    } catch (error) {
+      console.error('Failed to mark messages as read');
+    }
+  };
+
+  const handleTyping = async () => {
+    const id = dmId ? parseInt(dmId) : groupId ? parseInt(groupId) : null;
+    if (!id) return;
+
+    // Clear existing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    // Send typing indicator
+    try {
+      await fetch('/api/typing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversationId: dmId ? parseInt(dmId) : undefined,
+          groupChatId: groupId ? parseInt(groupId) : undefined,
+          isTyping: true,
+        }),
+      });
+    } catch (error) {
+      console.error('Failed to send typing indicator:', error);
+    }
+
+    // Stop typing after 3 seconds
+    typingTimeoutRef.current = setTimeout(async () => {
+      try {
+        await fetch('/api/typing', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            conversationId: dmId ? parseInt(dmId) : undefined,
+            groupChatId: groupId ? parseInt(groupId) : undefined,
+            isTyping: false,
+          }),
+        });
+      } catch (error) {
+        console.error('Failed to send stop typing indicator:', error);
+      }
+    }, 3000);
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      Array.from(files).forEach((file) => {
+        formData.append('files', file);
+      });
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setAttachments((prev) => [...prev, ...data.files]);
+      } else {
+        const error = await res.json();
+        alert(error.error || 'Failed to upload files');
+      }
+    } catch (error) {
+      console.error('Failed to upload files:', error);
+      alert('Failed to upload files');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveAttachment = (index: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() && attachments.length === 0) return;
 
     const id = dmId ? parseInt(dmId) : groupId ? parseInt(groupId) : null;
     if (!id) return;
 
     const type = dmId ? 'dm' : 'group';
     const messageContent = newMessage;
+    const messageAttachments = attachments;
+    const replyToId = replyingTo?.id;
     const tempId = `temp-${Date.now()}-${Math.random()}`;
 
     // Get current user info for optimistic message
@@ -208,16 +468,40 @@ function MessagesContent() {
       id: -1, // Temporary ID
       tempId,
       content: messageContent,
+      attachments: messageAttachments.length > 0 ? JSON.stringify(messageAttachments) : null,
       sender: currentUser,
       createdAt: new Date().toISOString(),
       isPending: true,
+      reactions: [],
+      replyTo: replyingTo ? {
+        id: replyingTo.id,
+        content: replyingTo.content,
+        sender: replyingTo.sender,
+      } : null,
     };
 
     // Add message optimistically to the UI
     setMessages((prev) => [...prev, optimisticMessage]);
 
-    // Clear the input immediately for better UX
+    // Clear the input, attachments, and reply immediately for better UX
     setNewMessage('');
+    setAttachments([]);
+    setReplyingTo(null);
+
+    // Send stop typing indicator
+    try {
+      await fetch('/api/typing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversationId: dmId ? parseInt(dmId) : undefined,
+          groupChatId: groupId ? parseInt(groupId) : undefined,
+          isTyping: false,
+        }),
+      });
+    } catch (error) {
+      // Ignore typing errors
+    }
 
     try {
       const endpoint = type === 'dm'
@@ -227,7 +511,11 @@ function MessagesContent() {
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: messageContent }),
+        body: JSON.stringify({ 
+          content: messageContent,
+          attachments: messageAttachments.length > 0 ? messageAttachments : undefined,
+          replyToId: replyToId,
+        }),
       });
 
       if (res.ok) {
@@ -365,6 +653,141 @@ function MessagesContent() {
     } catch (error) {
       console.error('Failed to delete group');
       alert('Failed to delete group');
+    }
+  };
+
+  const handleAddReaction = async (messageId: number, emoji: string) => {
+    try {
+      const res = await fetch(`/api/messages/${messageId}/reactions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emoji }),
+      });
+
+      if (!res.ok) {
+        console.error('Failed to add reaction');
+      }
+    } catch (error) {
+      console.error('Failed to add reaction:', error);
+    }
+    setShowEmojiPicker(null);
+  };
+
+  const handleRemoveReaction = async (messageId: number, emoji: string) => {
+    try {
+      const res = await fetch(`/api/messages/${messageId}/reactions?emoji=${encodeURIComponent(emoji)}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) {
+        console.error('Failed to remove reaction');
+      }
+    } catch (error) {
+      console.error('Failed to remove reaction:', error);
+    }
+  };
+
+  const handleCopyMessage = (content: string) => {
+    navigator.clipboard.writeText(content).then(() => {
+      // Could show a toast notification here
+      console.log('Message copied to clipboard');
+    }).catch((error) => {
+      console.error('Failed to copy message:', error);
+    });
+  };
+
+  const handleReply = (message: Message) => {
+    setReplyingTo(message);
+  };
+
+  const getMentionableUsers = (): User[] => {
+    const users: User[] = [];
+    
+    if (conversation) {
+      // In DM, only the other user can be mentioned
+      const otherUser = getOtherUser();
+      if (otherUser) users.push(otherUser);
+    } else if (groupChat) {
+      // In group chat, all members except self can be mentioned
+      const currentUserId = parseInt((session?.user as any)?.id || '0');
+      groupChat.members.forEach((member) => {
+        if (member.user.id !== currentUserId) {
+          users.push(member.user);
+        }
+      });
+    }
+    
+    return users;
+  };
+
+  const handleInputChange = (value: string) => {
+    setNewMessage(value);
+    handleTyping();
+
+    // Check for @ mentions
+    const lastAtIndex = value.lastIndexOf('@');
+    if (lastAtIndex !== -1) {
+      const textAfterAt = value.substring(lastAtIndex + 1);
+      // Only show suggestions if @ is at start or after a space, and no space after @
+      const charBeforeAt = lastAtIndex === 0 ? ' ' : value[lastAtIndex - 1];
+      if ((charBeforeAt === ' ' || lastAtIndex === 0) && !textAfterAt.includes(' ')) {
+        setMentionQuery(textAfterAt.toLowerCase());
+        const mentionableUsers = getMentionableUsers();
+        
+        // Filter users based on query, and always include @everyone option
+        const filtered = mentionableUsers.filter(
+          (user) =>
+            user.username.toLowerCase().includes(textAfterAt.toLowerCase()) ||
+            (user.nickname && user.nickname.toLowerCase().includes(textAfterAt.toLowerCase()))
+        );
+        
+        // Add @everyone as an option (only for group chats)
+        const suggestions = groupChat && 'everyone'.includes(textAfterAt.toLowerCase())
+          ? [{ id: -1, username: 'everyone', nickname: null, avatar: null } as User, ...filtered]
+          : filtered;
+        
+        setMentionSuggestions(suggestions);
+        setShowMentionSuggestions(suggestions.length > 0);
+        setSelectedMentionIndex(0);
+      } else {
+        setShowMentionSuggestions(false);
+      }
+    } else {
+      setShowMentionSuggestions(false);
+    }
+  };
+
+  const insertMention = (username: string) => {
+    const lastAtIndex = newMessage.lastIndexOf('@');
+    if (lastAtIndex !== -1) {
+      const beforeAt = newMessage.substring(0, lastAtIndex);
+      const afterAt = newMessage.substring(lastAtIndex + 1);
+      const afterMention = afterAt.includes(' ') ? afterAt.substring(afterAt.indexOf(' ')) : '';
+      setNewMessage(`${beforeAt}@${username} ${afterMention}`);
+      setShowMentionSuggestions(false);
+      inputRef.current?.focus();
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (showMentionSuggestions && mentionSuggestions.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedMentionIndex((prev) =>
+          prev < mentionSuggestions.length - 1 ? prev + 1 : 0
+        );
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedMentionIndex((prev) =>
+          prev > 0 ? prev - 1 : mentionSuggestions.length - 1
+        );
+      } else if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        const selectedUser = mentionSuggestions[selectedMentionIndex];
+        insertMention(selectedUser.username);
+      } else if (e.key === 'Escape') {
+        setShowMentionSuggestions(false);
+      }
     }
   };
 
@@ -643,9 +1066,15 @@ function MessagesContent() {
                   const isCurrentUser = msg.sender.id === parseInt((session?.user as any)?.id || '0');
                   const showAvatar = index === 0 || messages[index - 1].sender.id !== msg.sender.id;
                   const isConsecutive = !showAvatar;
+                  const currentUserId = parseInt((session?.user as any)?.id || '0');
 
                   return (
-                    <div key={msg.tempId || msg.id} className={`flex gap-2 sm:gap-4 hover:bg-black hover:bg-opacity-5 px-2 sm:px-4 py-1 -mx-2 sm:-mx-4 rounded ${isConsecutive ? 'mt-0.5' : 'mt-3 sm:mt-4'} ${msg.isPending ? 'opacity-70' : ''}`}>
+                    <div 
+                      key={msg.tempId || msg.id} 
+                      className={`flex gap-2 sm:gap-4 hover:bg-white hover:bg-opacity-[0.02] px-2 sm:px-4 py-1 -mx-2 sm:-mx-4 rounded ${isConsecutive ? 'mt-0.5' : 'mt-3 sm:mt-4'} ${msg.isPending ? 'opacity-70' : ''} relative group`}
+                      onMouseEnter={() => setHoveredMessage(msg.id)}
+                      onMouseLeave={() => setHoveredMessage(null)}
+                    >
                       <div className="flex-shrink-0">
                         {showAvatar ? (
                           isCurrentUser ? (
@@ -684,27 +1113,191 @@ function MessagesContent() {
                         )}
                       </div>
                       <div className="flex-1">
+                        {/* Hover Actions */}
+                        {!msg.isPending && hoveredMessage === msg.id && (
+                          <div className="absolute -top-4 right-4 flex gap-1 p-1 rounded shadow-lg z-10" style={{ backgroundColor: '#2b2d31' }}>
+                            <button
+                              onClick={() => handleReply(msg)}
+                              className="p-1.5 rounded hover:bg-gray-700 transition"
+                              title="Reply"
+                              style={{ color: '#b5bac1' }}
+                            >
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z"/>
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => setShowEmojiPicker(showEmojiPicker === msg.id ? null : msg.id)}
+                              className="p-1.5 rounded hover:bg-gray-700 transition"
+                              title="Add Reaction"
+                              style={{ color: '#b5bac1' }}
+                            >
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/>
+                              </svg>
+                            </button>
+                            {msg.content && (
+                              <button
+                                onClick={() => handleCopyMessage(msg.content)}
+                                className="p-1.5 rounded hover:bg-gray-700 transition"
+                                title="Copy"
+                                style={{ color: '#b5bac1' }}
+                              >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                  <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Emoji Picker */}
+                        {showEmojiPicker === msg.id && (
+                          <div 
+                            className="absolute top-0 right-16 p-2 rounded shadow-lg z-20 flex flex-wrap gap-1" 
+                            style={{ backgroundColor: '#2b2d31', maxWidth: '200px' }}
+                          >
+                            {['👍', '❤️', '😂', '😮', '😢', '😡', '👏', '🎉', '🔥', '💯'].map((emoji) => (
+                              <button
+                                key={emoji}
+                                onClick={() => handleAddReaction(msg.id, emoji)}
+                                className="text-2xl hover:bg-gray-700 rounded p-1 transition"
+                              >
+                                {emoji}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
                         {showAvatar && (
                           <div className="flex items-baseline gap-2 mb-1">
-                            <span className="font-semibold" style={{ color: isCurrentUser ? '#00a8fc' : '#f2f3f5' }}>
+                            <button
+                              onClick={() => router.push(`/profile/${msg.sender.username}`)}
+                              className="font-semibold hover:underline"
+                              style={{ color: isCurrentUser ? '#00a8fc' : '#f2f3f5' }}
+                            >
                               {isCurrentUser ? ((session?.user as any)?.nickname || (session?.user as any)?.username) : (msg.sender.nickname || msg.sender.username)}
-                            </span>
+                            </button>
                             <span className="text-xs" style={{ color: '#949ba4' }}>
                               {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </span>
                           </div>
                         )}
-                        <div className="flex items-center gap-2">
-                          <p className="break-words" style={{ color: '#dbdee1', lineHeight: '1.375rem' }}>
-                            {linkifyText(msg.content)}
-                          </p>
-                          {msg.isPending && (
-                            <span className="text-xs" style={{ color: '#949ba4' }} title="Sending...">
-                              <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                              </svg>
-                            </span>
+                        <div>
+                          {/* Reply Context */}
+                          {msg.replyTo && (
+                            <div 
+                              className="mb-2 pl-2 py-1 border-l-2 rounded text-sm cursor-pointer hover:bg-black hover:bg-opacity-10"
+                              style={{ borderColor: '#4e5058', color: '#b5bac1' }}
+                              onClick={() => {
+                                const element = document.getElementById(`msg-${msg.replyTo!.id}`);
+                                element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                              }}
+                            >
+                              <div className="flex items-center gap-1 mb-0.5">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                  <path d="M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z"/>
+                                </svg>
+                                <span className="font-semibold">
+                                  {msg.replyTo.sender.nickname || msg.replyTo.sender.username}
+                                </span>
+                              </div>
+                              <p className="truncate" style={{ color: '#949ba4' }}>
+                                {msg.replyTo.content}
+                              </p>
+                            </div>
+                          )}
+                          
+                          {msg.content && (
+                            <div className="flex items-center gap-2">
+                              <p className="break-words" style={{ color: '#dbdee1', lineHeight: '1.375rem' }}>
+                                {linkifyText(msg.content, router)}
+                              </p>
+                              {msg.isPending && (
+                                <span className="text-xs" style={{ color: '#949ba4' }} title="Sending...">
+                                  <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                  </svg>
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          {msg.attachments && (() => {
+                            try {
+                              const attachmentList: Attachment[] = JSON.parse(msg.attachments);
+                              return (
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                  {attachmentList.map((attachment, idx) => {
+                                    const isImage = attachment.type.startsWith('image/');
+                                    const isVideo = attachment.type.startsWith('video/');
+                                    
+                                    return (
+                                      <div key={idx} className="max-w-sm">
+                                        {isImage ? (
+                                          <a href={attachment.url} target="_blank" rel="noopener noreferrer">
+                                            <img
+                                              src={attachment.url}
+                                              alt={attachment.name}
+                                              className="rounded-lg max-h-80 cursor-pointer hover:opacity-90 transition"
+                                            />
+                                          </a>
+                                        ) : isVideo ? (
+                                          <video
+                                            src={attachment.url}
+                                            controls
+                                            className="rounded-lg max-h-80 max-w-full"
+                                          />
+                                        ) : null}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              );
+                            } catch {
+                              return null;
+                            }
+                          })()}
+
+                          {/* Reactions */}
+                          {msg.reactions && msg.reactions.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {(() => {
+                                // Group reactions by emoji
+                                const grouped = msg.reactions.reduce((acc, reaction) => {
+                                  if (!acc[reaction.emoji]) {
+                                    acc[reaction.emoji] = [];
+                                  }
+                                  acc[reaction.emoji].push(reaction);
+                                  return acc;
+                                }, {} as Record<string, Reaction[]>);
+
+                                return Object.entries(grouped).map(([emoji, reactions]) => {
+                                  const hasReacted = reactions.some(r => r.userId === currentUserId);
+                                  const usernames = reactions.map(r => r.user.nickname || r.user.username).join(', ');
+
+                                  return (
+                                    <button
+                                      key={emoji}
+                                      onClick={() => hasReacted ? handleRemoveReaction(msg.id, emoji) : handleAddReaction(msg.id, emoji)}
+                                      className={`flex items-center gap-1 px-2 py-0.5 rounded text-sm transition ${
+                                        hasReacted ? 'hover:bg-blue-900' : 'hover:bg-gray-700'
+                                      }`}
+                                      style={{ 
+                                        backgroundColor: hasReacted ? '#2e4a7c' : '#2b2d31',
+                                        border: hasReacted ? '1px solid #5865f2' : '1px solid #1e1f22'
+                                      }}
+                                      title={usernames}
+                                    >
+                                      <span>{emoji}</span>
+                                      <span style={{ color: hasReacted ? '#5865f2' : '#b5bac1' }}>
+                                        {reactions.length}
+                                      </span>
+                                    </button>
+                                  );
+                                });
+                              })()}
+                            </div>
                           )}
                         </div>
                       </div>
@@ -712,6 +1305,21 @@ function MessagesContent() {
                   );
                 })}
                 <div ref={messagesEndRef} />
+              </div>
+            )}
+            {/* Typing Indicator */}
+            {typingUsers.size > 0 && (
+              <div className="px-2 py-1">
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-1">
+                    <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: '#949ba4', animationDelay: '0ms' }}></span>
+                    <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: '#949ba4', animationDelay: '150ms' }}></span>
+                    <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: '#949ba4', animationDelay: '300ms' }}></span>
+                  </div>
+                  <span className="text-sm italic" style={{ color: '#949ba4' }}>
+                    {Array.from(typingUsers).join(', ')} {typingUsers.size === 1 ? 'is' : 'are'} typing...
+                  </span>
+                </div>
               </div>
             )}
           </div>
@@ -725,21 +1333,192 @@ function MessagesContent() {
               zIndex: 10,
             }}
           >
-            <div className="rounded-lg" style={{ backgroundColor: '#383a40' }}>
+            {/* Reply Context */}
+            {replyingTo && (
+              <div className="mb-2 flex items-center gap-2 p-2 rounded" style={{ backgroundColor: '#2b2d31' }}>
+                <div className="flex-1">
+                  <div className="flex items-center gap-1 mb-1">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="#b5bac1">
+                      <path d="M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z"/>
+                    </svg>
+                    <span className="text-sm font-semibold" style={{ color: '#b5bac1' }}>
+                      Replying to {replyingTo.sender.nickname || replyingTo.sender.username}
+                    </span>
+                  </div>
+                  <p className="text-sm truncate" style={{ color: '#949ba4' }}>
+                    {replyingTo.content}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setReplyingTo(null)}
+                  className="p-1 rounded hover:bg-gray-700 transition"
+                  style={{ color: '#949ba4' }}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                  </svg>
+                </button>
+              </div>
+            )}
+
+            {/* Attachment Preview */}
+            {attachments.length > 0 && (
+              <div className="mb-2 flex flex-wrap gap-2">
+                {attachments.map((attachment, index) => {
+                  const isImage = attachment.type.startsWith('image/');
+                  const isVideo = attachment.type.startsWith('video/');
+                  
+                  return (
+                    <div key={index} className="relative group">
+                      {isImage ? (
+                        <img
+                          src={attachment.url}
+                          alt={attachment.name}
+                          className="h-20 w-20 object-cover rounded"
+                        />
+                      ) : isVideo ? (
+                        <video
+                          src={attachment.url}
+                          className="h-20 w-20 object-cover rounded"
+                        />
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveAttachment(index)}
+                        className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center hover:bg-red-700 transition"
+                        style={{ backgroundColor: '#da373c', color: '#fff' }}
+                        title="Remove"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            
+            <div className="rounded-lg flex items-center gap-2" style={{ backgroundColor: '#383a40' }}>
               <input
-                type="text"
-                placeholder={conversation ? `Message @${getOtherUser()?.username}` : `Message #${groupChat?.name}`}
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg"
-                style={{ 
-                  backgroundColor: '#383a40',
-                  color: '#dbdee1',
-                  border: 'none',
-                  outline: 'none',
-                  fontSize: '15px',
-                }}
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileSelect}
+                accept="image/*,video/*"
+                multiple
+                className="hidden"
               />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="ml-3 p-2 rounded hover:bg-gray-700 transition flex-shrink-0"
+                title="Attach files"
+                style={{ color: uploading ? '#949ba4' : '#b5bac1' }}
+              >
+                {uploading ? (
+                  <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                ) : (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C11.5 2 11 2.19 10.59 2.59L2.59 10.59C1.8 11.37 1.8 12.63 2.59 13.41C3.37 14.2 4.63 14.2 5.41 13.41L11 7.83V19C11 20.1 11.9 21 13 21C14.1 21 15 20.1 15 19V7.83L20.59 13.41C21.37 14.2 22.63 14.2 23.41 13.41C24.2 12.63 24.2 11.37 23.41 10.59L15.41 2.59C15 2.19 14.5 2 14 2H12Z"/>
+                  </svg>
+                )}
+              </button>
+              <div className="flex-1 relative">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  placeholder={conversation ? `Message @${getOtherUser()?.username}` : `Message #${groupChat?.name}`}
+                  value={newMessage}
+                  onChange={(e) => handleInputChange(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  className="w-full px-4 py-3"
+                  style={{ 
+                    backgroundColor: 'transparent',
+                    color: '#dbdee1',
+                    border: 'none',
+                    outline: 'none',
+                    fontSize: '15px',
+                  }}
+                />
+                
+                {/* Mention Suggestions Dropdown */}
+                {showMentionSuggestions && mentionSuggestions.length > 0 && (
+                  <div
+                    className="absolute bottom-full left-0 mb-2 rounded-lg shadow-lg overflow-hidden"
+                    style={{
+                      backgroundColor: '#2b2d31',
+                      minWidth: '200px',
+                      maxHeight: '300px',
+                      overflowY: 'auto',
+                      zIndex: 50,
+                    }}
+                  >
+                    <div className="p-2">
+                      <p className="text-xs font-semibold mb-2 px-2" style={{ color: '#949ba4' }}>
+                        MENTION
+                      </p>
+                      {mentionSuggestions.map((user, index) => (
+                        <button
+                          key={user.id}
+                          onClick={() => insertMention(user.username)}
+                          className="w-full flex items-center gap-2 px-2 py-2 rounded transition"
+                          style={{
+                            backgroundColor: index === selectedMentionIndex ? '#404249' : 'transparent',
+                          }}
+                          onMouseEnter={() => setSelectedMentionIndex(index)}
+                        >
+                          {user.id === -1 ? (
+                            // @everyone icon
+                            <div
+                              className="w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold"
+                              style={{ backgroundColor: '#5865f2' }}
+                            >
+                              @
+                            </div>
+                          ) : user.avatar ? (
+                            <img
+                              src={user.avatar}
+                              alt={user.username}
+                              className="w-8 h-8 rounded-full"
+                            />
+                          ) : (
+                            <div
+                              className="w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold"
+                              style={{ backgroundColor: '#5865f2' }}
+                            >
+                              {user.username.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                          <div className="flex-1 text-left">
+                            <p className="text-sm font-semibold" style={{ color: '#f2f3f5' }}>
+                              {user.id === -1 ? 'everyone' : (user.nickname || user.username)}
+                            </p>
+                            {user.id !== -1 && (
+                              <p className="text-xs" style={{ color: '#949ba4' }}>
+                                @{user.username}
+                              </p>
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <button
+                type="submit"
+                disabled={!newMessage.trim() && attachments.length === 0}
+                className="mr-3 p-2 rounded hover:bg-gray-700 transition flex-shrink-0"
+                title="Send message"
+                style={{ color: (newMessage.trim() || attachments.length > 0) ? '#5865f2' : '#4e5058' }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                </svg>
+              </button>
             </div>
           </form>
         </>
