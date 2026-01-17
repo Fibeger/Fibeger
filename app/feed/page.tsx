@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
+const MAX_CAPTION_LENGTH = 500;
+
 interface User {
   id: number;
   username: string;
@@ -94,6 +96,11 @@ export default function FeedPage() {
   const handleUpload = async () => {
     if (!selectedFile) {
       alert('Please select a file');
+      return;
+    }
+
+    if (caption.length > MAX_CAPTION_LENGTH) {
+      alert(`Caption must be ${MAX_CAPTION_LENGTH} characters or less`);
       return;
     }
 
@@ -428,7 +435,11 @@ export default function FeedPage() {
               <textarea
                 placeholder="Write a caption..."
                 value={caption}
-                onChange={(e) => setCaption(e.target.value)}
+                onChange={(e) => {
+                  if (e.target.value.length <= MAX_CAPTION_LENGTH) {
+                    setCaption(e.target.value);
+                  }
+                }}
                 className="w-full px-4 py-3 rounded-md resize-none"
                 style={{
                   backgroundColor: '#383a40',
@@ -438,7 +449,13 @@ export default function FeedPage() {
                 }}
                 rows={3}
                 disabled={uploading}
+                maxLength={MAX_CAPTION_LENGTH}
               />
+              <div className="mt-2 text-sm text-right" style={{ 
+                color: caption.length > MAX_CAPTION_LENGTH * 0.9 ? '#f23f42' : '#949ba4' 
+              }}>
+                {caption.length} / {MAX_CAPTION_LENGTH}
+              </div>
             </div>
 
             {/* Upload Button */}

@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { prisma } from '@/app/lib/prisma';
 
+const MAX_CAPTION_LENGTH = 500;
+
 // GET - Fetch all feed posts (public for all users)
 export async function GET() {
   try {
@@ -65,6 +67,13 @@ export async function POST(request: NextRequest) {
     if (!['image', 'video', 'gif'].includes(mediaType)) {
       return NextResponse.json(
         { error: 'Invalid media type. Must be image, video, or gif' },
+        { status: 400 }
+      );
+    }
+
+    if (caption && caption.length > MAX_CAPTION_LENGTH) {
+      return NextResponse.json(
+        { error: `Caption must be ${MAX_CAPTION_LENGTH} characters or less` },
         { status: 400 }
       );
     }
