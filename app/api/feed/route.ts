@@ -5,8 +5,8 @@ import { prisma } from '@/app/lib/prisma';
 
 const MAX_CAPTION_LENGTH = 500;
 
-// GET - Fetch feed posts from friends and own posts
-export async function GET() {
+// GET - Fetch feed posts (public or friends)
+export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) {
@@ -14,50 +14,88 @@ export async function GET() {
     }
 
     const userId = parseInt((session.user as any).id);
+    const { searchParams } = new URL(request.url);
+    const feedType = searchParams.get('type') || 'friends'; // 'friends' or 'public'
 
-    // Get all friend IDs for the current user
-    const friends = await prisma.friend.findMany({
-      where: {
-        userId: userId,
-      },
-      select: {
-        friendId: true,
-      },
-    });
+    let posts;
 
-    const friendIds = friends.map(f => f.friendId);
-
-    // Fetch posts from the user and their friends
-    const posts = await prisma.feedPost.findMany({
-      where: {
-        userId: {
-          in: [userId, ...friendIds],
+    if (feedType === 'public') {
+      // Fetch all public posts
+      posts = await prisma.feedPost.findMany({
+        where: {
+          isPublic: true,
         },
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-            nickname: true,
-            avatar: true,
+        include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+              nickname: true,
+              avatar: true,
+            },
+          },
+          likes: {
+            select: {
+              userId: true,
+            },
+          },
+          _count: {
+            select: {
+              likes: true,
+            },
           },
         },
-        likes: {
-          select: {
-            userId: true,
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
+    } else {
+      // Fetch posts from friends (existing behavior)
+      // Get all friend IDs for the current user
+      const friends = await prisma.friend.findMany({
+        where: {
+          userId: userId,
+        },
+        select: {
+          friendId: true,
+        },
+      });
+
+      const friendIds = friends.map(f => f.friendId);
+
+      // Fetch posts from the user and their friends (friends-only posts)
+      posts = await prisma.feedPost.findMany({
+        where: {
+          isPublic: false, // Only friends-only posts
+          userId: {
+            in: [userId, ...friendIds],
           },
         },
-        _count: {
-          select: {
-            likes: true,
+        include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+              nickname: true,
+              avatar: true,
+            },
+          },
+          likes: {
+            select: {
+              userId: true,
+            },
+          },
+          _count: {
+            select: {
+              likes: true,
+            },
           },
         },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
+    }
 
     return NextResponse.json(posts);
   } catch (error) {
@@ -75,7 +113,7 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = parseInt((session.user as any).id);
-    const { caption, mediaUrl, mediaType } = await request.json();
+    const { caption, mediaUrl, mediaType, isPublic } = await request.json();
 
     if (!mediaUrl || !mediaType) {
       return NextResponse.json(
@@ -104,6 +142,7 @@ export async function POST(request: NextRequest) {
         caption: caption || null,
         mediaUrl,
         mediaType,
+        isPublic: isPublic || false, // Default to friends-only
       },
       include: {
         user: {

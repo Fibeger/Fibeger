@@ -20,6 +20,7 @@ interface FeedPost {
   caption: string | null;
   mediaUrl: string;
   mediaType: string;
+  isPublic: boolean;
   createdAt: string;
   user: User;
   likes: { userId: number }[];
@@ -39,6 +40,8 @@ export default function FeedPage() {
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [selectedPost, setSelectedPost] = useState<FeedPost | null>(null);
+  const [feedType, setFeedType] = useState<'friends' | 'public'>('friends');
+  const [isPublic, setIsPublic] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -50,12 +53,12 @@ export default function FeedPage() {
     if (session) {
       fetchPosts();
     }
-  }, [session]);
+  }, [session, feedType]);
 
   const fetchPosts = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/feed');
+      const res = await fetch(`/api/feed?type=${feedType}`);
       if (res.ok) {
         const data = await res.json();
         setPosts(data);
@@ -139,6 +142,7 @@ export default function FeedPage() {
           caption,
           mediaUrl: url,
           mediaType,
+          isPublic,
         }),
       });
 
@@ -150,6 +154,7 @@ export default function FeedPage() {
       setCaption('');
       setSelectedFile(null);
       setMediaPreview(null);
+      setIsPublic(false);
       setShowUploadModal(false);
       
       // Refresh posts
@@ -234,15 +239,40 @@ export default function FeedPage() {
     <div className="min-h-screen" style={{ backgroundColor: '#313338' }}>
       {/* Header */}
       <div className="sticky top-0 z-10" style={{ backgroundColor: '#2b2d31', borderBottom: '1px solid #1e1f22' }}>
-        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-2xl font-bold" style={{ color: '#f2f3f5' }}>Feed</h1>
-          <button
-            onClick={() => setShowUploadModal(true)}
-            className="px-6 py-2 rounded-md font-semibold transition hover:brightness-90"
-            style={{ backgroundColor: '#5865f2', color: '#ffffff' }}
-          >
-            + Upload
-          </button>
+        <div className="max-w-5xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-2xl font-bold" style={{ color: '#f2f3f5' }}>Feed</h1>
+            <button
+              onClick={() => setShowUploadModal(true)}
+              className="px-6 py-2 rounded-md font-semibold transition hover:brightness-90"
+              style={{ backgroundColor: '#5865f2', color: '#ffffff' }}
+            >
+              + Upload
+            </button>
+          </div>
+          {/* Tabs */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setFeedType('friends')}
+              className="px-6 py-2 rounded-md font-semibold transition"
+              style={{
+                backgroundColor: feedType === 'friends' ? '#5865f2' : '#383a40',
+                color: feedType === 'friends' ? '#ffffff' : '#949ba4',
+              }}
+            >
+              Friends
+            </button>
+            <button
+              onClick={() => setFeedType('public')}
+              className="px-6 py-2 rounded-md font-semibold transition"
+              style={{
+                backgroundColor: feedType === 'public' ? '#5865f2' : '#383a40',
+                color: feedType === 'public' ? '#ffffff' : '#949ba4',
+              }}
+            >
+              Public
+            </button>
+          </div>
         </div>
       </div>
 
@@ -573,7 +603,7 @@ export default function FeedPage() {
             </div>
 
             {/* Caption Input */}
-            <div className="mb-6">
+            <div className="mb-4">
               <textarea
                 placeholder="Write a caption..."
                 value={caption}
@@ -597,6 +627,31 @@ export default function FeedPage() {
                 color: caption.length > MAX_CAPTION_LENGTH * 0.9 ? '#f23f42' : '#949ba4' 
               }}>
                 {caption.length} / {MAX_CAPTION_LENGTH}
+              </div>
+            </div>
+
+            {/* Public/Private Toggle */}
+            <div className="mb-6 flex items-center gap-3 p-3 rounded-md" style={{ backgroundColor: '#383a40' }}>
+              <label className="flex items-center gap-3 cursor-pointer flex-1">
+                <input
+                  type="checkbox"
+                  checked={isPublic}
+                  onChange={(e) => setIsPublic(e.target.checked)}
+                  disabled={uploading}
+                  className="w-5 h-5 rounded cursor-pointer"
+                  style={{ accentColor: '#5865f2' }}
+                />
+                <div>
+                  <p className="font-semibold" style={{ color: '#f2f3f5' }}>
+                    Make this post public
+                  </p>
+                  <p className="text-sm" style={{ color: '#949ba4' }}>
+                    {isPublic ? 'Everyone can see this post' : 'Only your friends can see this post'}
+                  </p>
+                </div>
+              </label>
+              <div className="text-2xl">
+                {isPublic ? '🌍' : '👥'}
               </div>
             </div>
 

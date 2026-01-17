@@ -195,6 +195,7 @@ model FeedPost {
   caption   String?
   mediaUrl  String   // URL to the uploaded media
   mediaType String   // image, video, gif
+  isPublic  Boolean  @default(false) // true = public feed, false = friends only
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -203,6 +204,7 @@ model FeedPost {
 
   @@index([userId])
   @@index([createdAt])
+  @@index([isPublic])
 }
 
 model FeedLike {
