@@ -221,7 +221,7 @@ export async function POST(
           type: "message",
           title: "New Message",
           message: notificationMessage,
-          link: `/messages?conversation=${conversationId}`,
+          link: `/messages?dm=${conversationId}`,
         },
       })
     );
