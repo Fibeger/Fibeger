@@ -21,7 +21,20 @@ model User {
   nickname              String?
   bio                   String?
   avatar                String?
+  banner                String?               // Profile banner/header image
   lastUsernameChange    DateTime?
+  
+  // New customization fields
+  country               String?               // Country code (e.g., "US", "GB", "DE")
+  city                  String?               // City or location
+  pronouns              String?               // User's pronouns
+  birthday              String?               // Birthday (MM-DD format for privacy)
+  website               String?               // Personal website URL
+  socialLinks           String?               // JSON object with social media links
+  status                String?               // Custom status message (max 100 chars)
+  themeColor            String?               // Custom accent color (hex code)
+  interests             String?               // JSON array of interests/tags
+  
   createdAt             DateTime              @default(now())
   updatedAt             DateTime              @updatedAt
 

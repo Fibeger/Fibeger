@@ -1,0 +1,41 @@
+# Project-Specific Rules for Fibeger
+
+## Database Schema Management
+**CRITICAL**: This project uses TWO Prisma schema files:
+1. `prisma/schema.prisma` - Development schema (SQLite)
+2. `prisma/schema.production.prisma` - Production schema (PostgreSQL)
+
+**ALWAYS update BOTH schema files when making any database changes.**
+- Never update only one schema file
+- Keep the schemas in sync (only difference should be the database provider)
+- After updating schemas, run migrations for the active schema
+
+## File Structure
+- API routes: `app/api/`
+- Components: `app/components/`
+- Pages: `app/` with Next.js App Router structure
+- Database: Prisma ORM with SQLite (dev) and PostgreSQL (prod)
+
+## Best Practices
+- Always check for linter errors after making changes
+- Use the existing design system (CSS variables: --accent, --bg-primary, etc.)
+- Follow the existing patterns for API routes and authentication
+- Test database changes with migrations before committing
+
+## Uploads
+- User avatars: `public/uploads/avatars/`
+- Profile banners: `public/uploads/banners/`
+- Feed media: `public/uploads/feed/`
+- Messages: `public/uploads/messages/`
+- Always validate file types and sizes
+- Clean up old files when replacing (avatars, banners)
+
+## Authentication
+- Uses NextAuth.js
+- Session management via JWT
+- Always check session in API routes with `getServerSession(authOptions)`
+
+## Realtime Features
+- Server-Sent Events (SSE) for real-time updates
+- Event system in `app/lib/events.ts`
+- Don't use polling - use SSE architecture

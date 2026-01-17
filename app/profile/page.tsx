@@ -11,7 +11,24 @@ interface UserProfile {
   nickname: string | null;
   bio: string | null;
   avatar: string | null;
+  banner: string | null;
   lastUsernameChange: string | null;
+  country: string | null;
+  city: string | null;
+  pronouns: string | null;
+  birthday: string | null;
+  website: string | null;
+  socialLinks: string | null;
+  status: string | null;
+  themeColor: string | null;
+  interests: string | null;
+}
+
+interface SocialLinks {
+  twitter?: string;
+  github?: string;
+  instagram?: string;
+  linkedin?: string;
 }
 
 export default function ProfilePage() {
@@ -30,7 +47,20 @@ export default function ProfilePage() {
     nickname: '',
     bio: '',
     newUsername: '',
+    country: '',
+    city: '',
+    pronouns: '',
+    birthday: '',
+    website: '',
+    status: '',
+    themeColor: '',
+    twitter: '',
+    github: '',
+    instagram: '',
+    linkedin: '',
+    interests: [] as string[],
   });
+  const [newInterest, setNewInterest] = useState('');
 
   useEffect(() => {
     if (!session) {
@@ -47,10 +77,37 @@ export default function ProfilePage() {
       if (res.ok) {
         const data = await res.json();
         setProfile(data);
+        
+        let socialLinks: SocialLinks = {};
+        if (data.socialLinks) {
+          try {
+            socialLinks = JSON.parse(data.socialLinks);
+          } catch {}
+        }
+        
+        let interests: string[] = [];
+        if (data.interests) {
+          try {
+            interests = JSON.parse(data.interests);
+          } catch {}
+        }
+        
         setFormData({
           nickname: data.nickname || '',
           bio: data.bio || '',
           newUsername: '',
+          country: data.country || '',
+          city: data.city || '',
+          pronouns: data.pronouns || '',
+          birthday: data.birthday || '',
+          website: data.website || '',
+          status: data.status || '',
+          themeColor: data.themeColor || '#8B5CF6',
+          twitter: socialLinks.twitter || '',
+          github: socialLinks.github || '',
+          instagram: socialLinks.instagram || '',
+          linkedin: socialLinks.linkedin || '',
+          interests: interests,
         });
       }
     } catch (error) {
@@ -63,12 +120,28 @@ export default function ProfilePage() {
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const socialLinks: SocialLinks = {
+        twitter: formData.twitter || undefined,
+        github: formData.github || undefined,
+        instagram: formData.instagram || undefined,
+        linkedin: formData.linkedin || undefined,
+      };
+      
       const res = await fetch('/api/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           nickname: formData.nickname,
           bio: formData.bio,
+          country: formData.country,
+          city: formData.city,
+          pronouns: formData.pronouns,
+          birthday: formData.birthday,
+          website: formData.website,
+          status: formData.status,
+          themeColor: formData.themeColor,
+          socialLinks: JSON.stringify(socialLinks),
+          interests: JSON.stringify(formData.interests),
         }),
       });
 
@@ -123,6 +196,67 @@ export default function ProfilePage() {
       setMessage('Error uploading image');
     } finally {
       setUploadingAvatar(false);
+    }
+  };
+
+  const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      setMessage('Banner size must be less than 10MB');
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      setMessage('Please upload an image file');
+      return;
+    }
+
+    setUploadingAvatar(true);
+    try {
+      const formDataToSend = new FormData();
+      formDataToSend.append('banner', file);
+
+      const res = await fetch('/api/profile/banner', {
+        method: 'POST',
+        body: formDataToSend,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setProfile(data);
+        setMessage('✓ Banner updated successfully');
+        setTimeout(() => setMessage(''), 3000);
+      } else {
+        const error = await res.json();
+        setMessage(error.error || 'Failed to upload banner');
+      }
+    } catch (error) {
+      setMessage('Error uploading banner');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const handleBannerRemove = async () => {
+    if (!confirm('Are you sure you want to remove your banner?')) return;
+
+    try {
+      const res = await fetch('/api/profile/banner', {
+        method: 'DELETE',
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setProfile(data);
+        setMessage('✓ Banner removed successfully');
+        setTimeout(() => setMessage(''), 3000);
+      } else {
+        setMessage('Failed to remove banner');
+      }
+    } catch (error) {
+      setMessage('Error removing banner');
     }
   };
 
@@ -182,6 +316,69 @@ export default function ProfilePage() {
     }
   };
 
+  const addInterest = () => {
+    if (newInterest.trim() && formData.interests.length < 10 && !formData.interests.includes(newInterest.trim())) {
+      setFormData({ ...formData, interests: [...formData.interests, newInterest.trim()] });
+      setNewInterest('');
+    }
+  };
+
+  const removeInterest = (interest: string) => {
+    setFormData({ ...formData, interests: formData.interests.filter(i => i !== interest) });
+  };
+
+  const getCountryFlag = (countryCode: string | null) => {
+    if (!countryCode) return '';
+    const codePoints = countryCode
+      .toUpperCase()
+      .split('')
+      .map(char => 127397 + char.charCodeAt(0));
+    return String.fromCodePoint(...codePoints);
+  };
+
+  const countries = [
+    { code: 'US', name: 'United States' },
+    { code: 'GB', name: 'United Kingdom' },
+    { code: 'CA', name: 'Canada' },
+    { code: 'AU', name: 'Australia' },
+    { code: 'DE', name: 'Germany' },
+    { code: 'FR', name: 'France' },
+    { code: 'ES', name: 'Spain' },
+    { code: 'IT', name: 'Italy' },
+    { code: 'NL', name: 'Netherlands' },
+    { code: 'SE', name: 'Sweden' },
+    { code: 'NO', name: 'Norway' },
+    { code: 'DK', name: 'Denmark' },
+    { code: 'FI', name: 'Finland' },
+    { code: 'PL', name: 'Poland' },
+    { code: 'BR', name: 'Brazil' },
+    { code: 'MX', name: 'Mexico' },
+    { code: 'AR', name: 'Argentina' },
+    { code: 'JP', name: 'Japan' },
+    { code: 'KR', name: 'South Korea' },
+    { code: 'CN', name: 'China' },
+    { code: 'IN', name: 'India' },
+    { code: 'RU', name: 'Russia' },
+    { code: 'ZA', name: 'South Africa' },
+    { code: 'NZ', name: 'New Zealand' },
+    { code: 'IE', name: 'Ireland' },
+    { code: 'CH', name: 'Switzerland' },
+    { code: 'AT', name: 'Austria' },
+    { code: 'BE', name: 'Belgium' },
+    { code: 'PT', name: 'Portugal' },
+    { code: 'GR', name: 'Greece' },
+    { code: 'TR', name: 'Turkey' },
+    { code: 'SG', name: 'Singapore' },
+    { code: 'MY', name: 'Malaysia' },
+    { code: 'TH', name: 'Thailand' },
+    { code: 'VN', name: 'Vietnam' },
+    { code: 'PH', name: 'Philippines' },
+    { code: 'ID', name: 'Indonesia' },
+    { code: 'AE', name: 'United Arab Emirates' },
+    { code: 'SA', name: 'Saudi Arabia' },
+    { code: 'EG', name: 'Egypt' },
+  ];
+
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-center">
@@ -215,69 +412,233 @@ export default function ProfilePage() {
           <div className="space-y-6">
             {/* Profile Header */}
             <div 
-              className="rounded-lg p-10"
+              className="rounded-lg overflow-hidden"
               style={{
                 backgroundColor: 'var(--bg-secondary)',
               }}
             >
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-8">
-                {/* Avatar Section */}
-                <div className="flex-shrink-0">
-                  <div className="relative group">
-                    {profile.avatar ? (
-                      <img
-                        src={profile.avatar}
-                        alt={profile.username}
-                        className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4"
-                        style={{ borderColor: 'var(--accent)' }}
-                      />
-                    ) : (
-                      <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full flex items-center justify-center text-white text-5xl font-bold" style={{ backgroundColor: 'var(--accent)' }}>
-                        {profile.username.charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                    <label className="absolute bottom-0 right-0 text-white p-3 rounded-full cursor-pointer transition" style={{ backgroundColor: 'var(--accent)' }}>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleAvatarUpload}
-                        disabled={uploadingAvatar}
-                        className="hidden"
-                      />
-                      📷
-                    </label>
+              {/* Banner Image */}
+              <div className="relative w-full h-48 sm:h-64" style={{ backgroundColor: profile.banner ? 'transparent' : 'var(--bg-primary)' }}>
+                {profile.banner ? (
+                  <>
+                    <img 
+                      src={profile.banner}
+                      alt="Profile banner"
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute top-4 right-4 flex gap-2">
+                      <label className="px-4 py-2 text-white rounded-md cursor-pointer transition font-medium" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleBannerUpload}
+                          disabled={uploadingAvatar}
+                          className="hidden"
+                        />
+                        Change Banner
+                      </label>
+                      <button
+                        onClick={handleBannerRemove}
+                        className="px-4 py-2 text-white rounded-md transition font-medium"
+                        style={{ backgroundColor: 'rgba(220,38,38,0.8)' }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <label className="w-full h-full flex items-center justify-center cursor-pointer hover:opacity-80 transition">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleBannerUpload}
+                      disabled={uploadingAvatar}
+                      className="hidden"
+                    />
+                    <div className="text-center">
+                      <div className="text-4xl mb-2">🖼️</div>
+                      <p className="font-medium" style={{ color: 'var(--text-secondary)' }}>
+                        Click to add a banner
+                      </p>
+                    </div>
+                  </label>
+                )}
+              </div>
+              
+              <div className="p-10">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-8">
+                  {/* Avatar Section */}
+                  <div className="flex-shrink-0" style={{ marginTop: profile.banner ? '-5rem' : '0' }}>
+                    <div className="relative group">
+                      {profile.avatar ? (
+                        <img
+                          src={profile.avatar}
+                          alt={profile.username}
+                          className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4"
+                          style={{ borderColor: profile.themeColor || 'var(--accent)', backgroundColor: 'var(--bg-secondary)' }}
+                        />
+                      ) : (
+                        <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full flex items-center justify-center text-white text-5xl font-bold border-4" style={{ backgroundColor: profile.themeColor || 'var(--accent)', borderColor: 'var(--bg-secondary)' }}>
+                          {profile.username.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <label className="absolute bottom-0 right-0 text-white p-3 rounded-full cursor-pointer transition" style={{ backgroundColor: profile.themeColor || 'var(--accent)' }}>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleAvatarUpload}
+                          disabled={uploadingAvatar}
+                          className="hidden"
+                        />
+                        📷
+                      </label>
+                    </div>
                   </div>
-                  <p className="text-xs mt-2 font-medium" style={{ color: 'var(--text-tertiary)' }}>Click to change</p>
-                </div>
 
-                {/* User Info */}
-                <div className="flex-1">
-                  <h1 className="text-3xl sm:text-4xl font-bold" style={{ color: 'var(--text-primary)' }}>
-                    {profile.nickname || profile.username}
-                  </h1>
-                  <p className="text-lg mt-1 font-medium" style={{ color: 'var(--text-secondary)' }}>@{profile.username}</p>
-                  <p className="mt-3 text-base" style={{ color: 'var(--text-secondary)' }}>{profile.bio || 'No bio yet'}</p>
-                  <p className="text-sm mt-4 font-medium" style={{ color: 'var(--text-tertiary)' }}>{profile.email}</p>
-                </div>
+                  {/* User Info */}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <h1 className="text-3xl sm:text-4xl font-bold" style={{ color: 'var(--text-primary)' }}>
+                        {profile.nickname || profile.username}
+                      </h1>
+                      {profile.country && (
+                        <span className="text-3xl" title={countries.find(c => c.code === profile.country)?.name}>
+                          {getCountryFlag(profile.country)}
+                        </span>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center gap-3 mt-1 flex-wrap">
+                      <p className="text-lg font-medium" style={{ color: 'var(--text-secondary)' }}>
+                        @{profile.username}
+                      </p>
+                      {profile.pronouns && (
+                        <span className="px-3 py-1 rounded-full text-sm font-medium" style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-secondary)' }}>
+                          {profile.pronouns}
+                        </span>
+                      )}
+                    </div>
+                    
+                    {profile.status && (
+                      <p className="mt-2 text-base font-medium italic" style={{ color: profile.themeColor || 'var(--accent)' }}>
+                        "{profile.status}"
+                      </p>
+                    )}
+                    
+                    <p className="mt-3 text-base" style={{ color: 'var(--text-secondary)' }}>
+                      {profile.bio || 'No bio yet'}
+                    </p>
+                    
+                    {/* Location and Birthday */}
+                    <div className="flex items-center gap-4 mt-4 flex-wrap text-sm font-medium" style={{ color: 'var(--text-tertiary)' }}>
+                      {profile.city && (
+                        <div className="flex items-center gap-1">
+                          <span>📍</span>
+                          <span>{profile.city}</span>
+                        </div>
+                      )}
+                      {profile.birthday && (
+                        <div className="flex items-center gap-1">
+                          <span>🎂</span>
+                          <span>{profile.birthday}</span>
+                        </div>
+                      )}
+                      {profile.website && (
+                        <a 
+                          href={profile.website.startsWith('http') ? profile.website : `https://${profile.website}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 hover:underline"
+                          style={{ color: profile.themeColor || 'var(--accent)' }}
+                        >
+                          <span>🔗</span>
+                          <span>{profile.website}</span>
+                        </a>
+                      )}
+                    </div>
 
-                <div className="w-full sm:w-auto">
-                  {editing ? (
-                    <button
-                      onClick={() => setEditing(false)}
-                      className="w-full px-8 py-3 text-white rounded-md transition font-medium"
-                      style={{ backgroundColor: 'var(--danger)' }}
-                    >
-                      Cancel
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => setEditing(true)}
-                      className="w-full px-8 py-3 text-white rounded-md transition font-medium"
-                      style={{ backgroundColor: 'var(--accent)' }}
-                    >
-                      Edit Profile
-                    </button>
-                  )}
+                    {/* Social Links */}
+                    {profile.socialLinks && (() => {
+                      try {
+                        const links = JSON.parse(profile.socialLinks) as SocialLinks;
+                        const hasLinks = Object.values(links).some(v => v);
+                        if (hasLinks) {
+                          return (
+                            <div className="flex items-center gap-4 mt-4">
+                              {links.twitter && (
+                                <a href={`https://twitter.com/${links.twitter}`} target="_blank" rel="noopener noreferrer" className="text-2xl hover:opacity-70 transition">
+                                  𝕏
+                                </a>
+                              )}
+                              {links.github && (
+                                <a href={`https://github.com/${links.github}`} target="_blank" rel="noopener noreferrer" className="text-2xl hover:opacity-70 transition">
+                                  🐙
+                                </a>
+                              )}
+                              {links.instagram && (
+                                <a href={`https://instagram.com/${links.instagram}`} target="_blank" rel="noopener noreferrer" className="text-2xl hover:opacity-70 transition">
+                                  📷
+                                </a>
+                              )}
+                              {links.linkedin && (
+                                <a href={`https://linkedin.com/in/${links.linkedin}`} target="_blank" rel="noopener noreferrer" className="text-2xl hover:opacity-70 transition">
+                                  💼
+                                </a>
+                              )}
+                            </div>
+                          );
+                        }
+                      } catch {}
+                      return null;
+                    })()}
+
+                    {/* Interests */}
+                    {profile.interests && (() => {
+                      try {
+                        const interests = JSON.parse(profile.interests) as string[];
+                        if (interests.length > 0) {
+                          return (
+                            <div className="flex flex-wrap gap-2 mt-4">
+                              {interests.map((interest, idx) => (
+                                <span 
+                                  key={idx}
+                                  className="px-3 py-1 rounded-full text-sm font-medium"
+                                  style={{ backgroundColor: profile.themeColor || 'var(--accent)', color: '#fff' }}
+                                >
+                                  {interest}
+                                </span>
+                              ))}
+                            </div>
+                          );
+                        }
+                      } catch {}
+                      return null;
+                    })()}
+                    
+                    <p className="text-sm mt-4 font-medium" style={{ color: 'var(--text-tertiary)' }}>
+                      {profile.email}
+                    </p>
+                  </div>
+
+                  <div className="w-full sm:w-auto">
+                    {editing ? (
+                      <button
+                        onClick={() => setEditing(false)}
+                        className="w-full px-8 py-3 text-white rounded-md transition font-medium"
+                        style={{ backgroundColor: 'var(--danger)' }}
+                      >
+                        Cancel
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setEditing(true)}
+                        className="w-full px-8 py-3 text-white rounded-md transition font-medium"
+                        style={{ backgroundColor: profile.themeColor || 'var(--accent)' }}
+                      >
+                        Edit Profile
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -286,47 +647,315 @@ export default function ProfilePage() {
             {editing && (
               <div className="rounded-lg p-10" style={{ backgroundColor: 'var(--bg-secondary)' }}>
                 <h2 className="text-2xl font-bold mb-8" style={{ color: 'var(--text-primary)' }}>Edit Profile</h2>
-                <form onSubmit={handleUpdate} className="space-y-7">
-                  <div>
-                    <div className="flex justify-between items-center mb-3">
-                      <label className="block text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
-                        Display Name
-                      </label>
-                      <span className="text-xs font-medium" style={{ color: formData.nickname.length > 25 ? 'var(--danger)' : 'var(--text-tertiary)' }}>
-                        {formData.nickname.length}/25
-                      </span>
+                <form onSubmit={handleUpdate} className="space-y-8">
+                  
+                  {/* Basic Information */}
+                  <div className="space-y-5">
+                    <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Basic Information</h3>
+                    
+                    <div>
+                      <div className="flex justify-between items-center mb-3">
+                        <label className="block text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+                          Display Name
+                        </label>
+                        <span className="text-xs font-medium" style={{ color: formData.nickname.length > 25 ? 'var(--danger)' : 'var(--text-tertiary)' }}>
+                          {formData.nickname.length}/25
+                        </span>
+                      </div>
+                      <input
+                        type="text"
+                        value={formData.nickname}
+                        onChange={(e) =>
+                          setFormData({ ...formData, nickname: e.target.value })
+                        }
+                        placeholder="Your display name"
+                        maxLength={25}
+                        className="w-full px-5 py-3 rounded-md"
+                      />
                     </div>
-                    <input
-                      type="text"
-                      value={formData.nickname}
-                      onChange={(e) =>
-                        setFormData({ ...formData, nickname: e.target.value })
-                      }
-                      placeholder="Your display name"
-                      maxLength={25}
-                      className="w-full px-5 py-3 rounded-md"
-                    />
+
+                    <div>
+                      <div className="flex justify-between items-center mb-3">
+                        <label className="block text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+                          Bio
+                        </label>
+                        <span className="text-xs font-medium" style={{ color: formData.bio.length > 355 ? 'var(--danger)' : 'var(--text-tertiary)' }}>
+                          {formData.bio.length}/355
+                        </span>
+                      </div>
+                      <textarea
+                        value={formData.bio}
+                        onChange={(e) =>
+                          setFormData({ ...formData, bio: e.target.value })
+                        }
+                        placeholder="Tell us about yourself..."
+                        maxLength={355}
+                        className="w-full px-5 py-3 rounded-md"
+                        rows={4}
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between items-center mb-3">
+                        <label className="block text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+                          Status Message
+                        </label>
+                        <span className="text-xs font-medium" style={{ color: formData.status.length > 100 ? 'var(--danger)' : 'var(--text-tertiary)' }}>
+                          {formData.status.length}/100
+                        </span>
+                      </div>
+                      <input
+                        type="text"
+                        value={formData.status}
+                        onChange={(e) =>
+                          setFormData({ ...formData, status: e.target.value })
+                        }
+                        placeholder="What's on your mind?"
+                        maxLength={100}
+                        className="w-full px-5 py-3 rounded-md"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium mb-3" style={{ color: 'var(--text-secondary)' }}>
+                        Pronouns
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.pronouns}
+                        onChange={(e) =>
+                          setFormData({ ...formData, pronouns: e.target.value })
+                        }
+                        placeholder="e.g., he/him, she/her, they/them"
+                        maxLength={50}
+                        className="w-full px-5 py-3 rounded-md"
+                      />
+                    </div>
                   </div>
 
-                  <div>
-                    <div className="flex justify-between items-center mb-3">
-                      <label className="block text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
-                        Bio
+                  {/* Location */}
+                  <div className="space-y-5 pt-6 border-t" style={{ borderColor: 'var(--bg-primary)' }}>
+                    <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Location</h3>
+                    
+                    <div>
+                      <label className="block text-sm font-medium mb-3" style={{ color: 'var(--text-secondary)' }}>
+                        Country
                       </label>
-                      <span className="text-xs font-medium" style={{ color: formData.bio.length > 355 ? 'var(--danger)' : 'var(--text-tertiary)' }}>
-                        {formData.bio.length}/355
-                      </span>
+                      <select
+                        value={formData.country}
+                        onChange={(e) =>
+                          setFormData({ ...formData, country: e.target.value })
+                        }
+                        className="w-full px-5 py-3 rounded-md"
+                      >
+                        <option value="">Select a country</option>
+                        {countries.map((country) => (
+                          <option key={country.code} value={country.code}>
+                            {getCountryFlag(country.code)} {country.name}
+                          </option>
+                        ))}
+                      </select>
                     </div>
-                    <textarea
-                      value={formData.bio}
-                      onChange={(e) =>
-                        setFormData({ ...formData, bio: e.target.value })
-                      }
-                      placeholder="Tell us about yourself..."
-                      maxLength={355}
-                      className="w-full px-5 py-3 rounded-md"
-                      rows={4}
-                    />
+
+                    <div>
+                      <label className="block text-sm font-medium mb-3" style={{ color: 'var(--text-secondary)' }}>
+                        City
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.city}
+                        onChange={(e) =>
+                          setFormData({ ...formData, city: e.target.value })
+                        }
+                        placeholder="Your city"
+                        maxLength={100}
+                        className="w-full px-5 py-3 rounded-md"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium mb-3" style={{ color: 'var(--text-secondary)' }}>
+                        Birthday (MM-DD)
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.birthday}
+                        onChange={(e) =>
+                          setFormData({ ...formData, birthday: e.target.value })
+                        }
+                        placeholder="e.g., 05-15"
+                        maxLength={5}
+                        pattern="\d{2}-\d{2}"
+                        className="w-full px-5 py-3 rounded-md"
+                      />
+                      <p className="text-xs mt-2" style={{ color: 'var(--text-tertiary)' }}>
+                        Format: MM-DD (Year not required for privacy)
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Social Links */}
+                  <div className="space-y-5 pt-6 border-t" style={{ borderColor: 'var(--bg-primary)' }}>
+                    <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Links & Socials</h3>
+                    
+                    <div>
+                      <label className="block text-sm font-medium mb-3" style={{ color: 'var(--text-secondary)' }}>
+                        Website
+                      </label>
+                      <input
+                        type="url"
+                        value={formData.website}
+                        onChange={(e) =>
+                          setFormData({ ...formData, website: e.target.value })
+                        }
+                        placeholder="https://yourwebsite.com"
+                        maxLength={200}
+                        className="w-full px-5 py-3 rounded-md"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-3" style={{ color: 'var(--text-secondary)' }}>
+                          𝕏 / Twitter Username
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.twitter}
+                          onChange={(e) =>
+                            setFormData({ ...formData, twitter: e.target.value })
+                          }
+                          placeholder="username"
+                          className="w-full px-5 py-3 rounded-md"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-3" style={{ color: 'var(--text-secondary)' }}>
+                          🐙 GitHub Username
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.github}
+                          onChange={(e) =>
+                            setFormData({ ...formData, github: e.target.value })
+                          }
+                          placeholder="username"
+                          className="w-full px-5 py-3 rounded-md"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-3" style={{ color: 'var(--text-secondary)' }}>
+                          📷 Instagram Username
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.instagram}
+                          onChange={(e) =>
+                            setFormData({ ...formData, instagram: e.target.value })
+                          }
+                          placeholder="username"
+                          className="w-full px-5 py-3 rounded-md"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-3" style={{ color: 'var(--text-secondary)' }}>
+                          💼 LinkedIn Username
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.linkedin}
+                          onChange={(e) =>
+                            setFormData({ ...formData, linkedin: e.target.value })
+                          }
+                          placeholder="username"
+                          className="w-full px-5 py-3 rounded-md"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Customization */}
+                  <div className="space-y-5 pt-6 border-t" style={{ borderColor: 'var(--bg-primary)' }}>
+                    <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Customization</h3>
+                    
+                    <div>
+                      <label className="block text-sm font-medium mb-3" style={{ color: 'var(--text-secondary)' }}>
+                        Theme Color
+                      </label>
+                      <div className="flex items-center gap-4">
+                        <input
+                          type="color"
+                          value={formData.themeColor}
+                          onChange={(e) =>
+                            setFormData({ ...formData, themeColor: e.target.value })
+                          }
+                          className="h-12 w-20 rounded-md cursor-pointer"
+                        />
+                        <input
+                          type="text"
+                          value={formData.themeColor}
+                          onChange={(e) =>
+                            setFormData({ ...formData, themeColor: e.target.value })
+                          }
+                          placeholder="#8B5CF6"
+                          className="flex-1 px-5 py-3 rounded-md"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium mb-3" style={{ color: 'var(--text-secondary)' }}>
+                        Interests & Hobbies (max 10)
+                      </label>
+                      <div className="flex gap-2 mb-3">
+                        <input
+                          type="text"
+                          value={newInterest}
+                          onChange={(e) => setNewInterest(e.target.value)}
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              addInterest();
+                            }
+                          }}
+                          placeholder="Add an interest..."
+                          maxLength={20}
+                          className="flex-1 px-5 py-3 rounded-md"
+                        />
+                        <button
+                          type="button"
+                          onClick={addInterest}
+                          disabled={formData.interests.length >= 10}
+                          className="px-6 py-3 text-white rounded-md font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                          style={{ backgroundColor: formData.themeColor }}
+                        >
+                          Add
+                        </button>
+                      </div>
+                      {formData.interests.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {formData.interests.map((interest, idx) => (
+                            <span
+                              key={idx}
+                              className="px-3 py-1 rounded-full text-sm font-medium flex items-center gap-2"
+                              style={{ backgroundColor: formData.themeColor, color: '#fff' }}
+                            >
+                              {interest}
+                              <button
+                                type="button"
+                                onClick={() => removeInterest(interest)}
+                                className="hover:opacity-70"
+                              >
+                                ✕
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="flex flex-col sm:flex-row gap-4 pt-4">

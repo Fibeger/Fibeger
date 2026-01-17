@@ -10,9 +10,26 @@ interface UserProfile {
   nickname: string | null;
   bio: string | null;
   avatar: string | null;
+  banner: string | null;
   createdAt: string;
   isFriend: boolean;
   isOwnProfile: boolean;
+  country: string | null;
+  city: string | null;
+  pronouns: string | null;
+  birthday: string | null;
+  website: string | null;
+  socialLinks: string | null;
+  status: string | null;
+  themeColor: string | null;
+  interests: string | null;
+}
+
+interface SocialLinks {
+  twitter?: string;
+  github?: string;
+  instagram?: string;
+  linkedin?: string;
 }
 
 export default function UserProfilePage() {
@@ -24,6 +41,58 @@ export default function UserProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
+
+  const getCountryFlag = (countryCode: string | null) => {
+    if (!countryCode) return '';
+    const codePoints = countryCode
+      .toUpperCase()
+      .split('')
+      .map(char => 127397 + char.charCodeAt(0));
+    return String.fromCodePoint(...codePoints);
+  };
+
+  const countries = [
+    { code: 'US', name: 'United States' },
+    { code: 'GB', name: 'United Kingdom' },
+    { code: 'CA', name: 'Canada' },
+    { code: 'AU', name: 'Australia' },
+    { code: 'DE', name: 'Germany' },
+    { code: 'FR', name: 'France' },
+    { code: 'ES', name: 'Spain' },
+    { code: 'IT', name: 'Italy' },
+    { code: 'NL', name: 'Netherlands' },
+    { code: 'SE', name: 'Sweden' },
+    { code: 'NO', name: 'Norway' },
+    { code: 'DK', name: 'Denmark' },
+    { code: 'FI', name: 'Finland' },
+    { code: 'PL', name: 'Poland' },
+    { code: 'BR', name: 'Brazil' },
+    { code: 'MX', name: 'Mexico' },
+    { code: 'AR', name: 'Argentina' },
+    { code: 'JP', name: 'Japan' },
+    { code: 'KR', name: 'South Korea' },
+    { code: 'CN', name: 'China' },
+    { code: 'IN', name: 'India' },
+    { code: 'RU', name: 'Russia' },
+    { code: 'ZA', name: 'South Africa' },
+    { code: 'NZ', name: 'New Zealand' },
+    { code: 'IE', name: 'Ireland' },
+    { code: 'CH', name: 'Switzerland' },
+    { code: 'AT', name: 'Austria' },
+    { code: 'BE', name: 'Belgium' },
+    { code: 'PT', name: 'Portugal' },
+    { code: 'GR', name: 'Greece' },
+    { code: 'TR', name: 'Turkey' },
+    { code: 'SG', name: 'Singapore' },
+    { code: 'MY', name: 'Malaysia' },
+    { code: 'TH', name: 'Thailand' },
+    { code: 'VN', name: 'Vietnam' },
+    { code: 'PH', name: 'Philippines' },
+    { code: 'ID', name: 'Indonesia' },
+    { code: 'AE', name: 'United Arab Emirates' },
+    { code: 'SA', name: 'Saudi Arabia' },
+    { code: 'EG', name: 'Egypt' },
+  ];
 
   useEffect(() => {
     if (!session) {
@@ -141,65 +210,188 @@ export default function UserProfilePage() {
           <div className="space-y-6">
             {/* Profile Header */}
             <div 
-              className="rounded-lg p-6 sm:p-10"
+              className="rounded-lg overflow-hidden"
               style={{
                 backgroundColor: 'var(--bg-secondary)',
               }}
             >
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-8">
-                {/* Avatar Section */}
-                <div className="flex-shrink-0">
-                  {profile.avatar ? (
-                    <img
-                      src={profile.avatar}
-                      alt={profile.username}
-                      className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4"
-                      style={{ borderColor: 'var(--accent)' }}
-                    />
-                  ) : (
-                    <div 
-                      className="w-32 h-32 sm:w-40 sm:h-40 rounded-full flex items-center justify-center text-white text-5xl font-bold" 
-                      style={{ backgroundColor: 'var(--accent)' }}
-                    >
-                      {profile.username.charAt(0).toUpperCase()}
-                    </div>
-                  )}
+              {/* Banner Image */}
+              {profile.banner ? (
+                <div className="relative w-full h-48 sm:h-64">
+                  <img 
+                    src={profile.banner}
+                    alt="Profile banner"
+                    className="w-full h-full object-cover"
+                  />
                 </div>
-
-                {/* User Info */}
-                <div className="flex-1">
-                  <h1 className="text-3xl sm:text-4xl font-bold" style={{ color: 'var(--text-primary)' }}>
-                    {profile.nickname || profile.username}
-                  </h1>
-                  <p className="text-lg mt-1 font-medium" style={{ color: 'var(--text-secondary)' }}>
-                    @{profile.username}
-                  </p>
-                  <p className="mt-3 text-base" style={{ color: 'var(--text-secondary)' }}>
-                    {profile.bio || 'No bio yet'}
-                  </p>
-                  <p className="text-sm mt-4 font-medium" style={{ color: 'var(--text-tertiary)' }}>
-                    Member since {new Date(profile.createdAt).toLocaleDateString()}
-                  </p>
-                  
-                  {profile.isFriend && (
-                    <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full" style={{ backgroundColor: 'var(--success)', color: 'white' }}>
-                      <span className="font-semibold">✓ Friends</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Action Buttons */}
-                {profile.isFriend && (
-                  <div className="flex flex-col gap-3 w-full sm:w-auto">
-                    <button
-                      onClick={handleSendMessage}
-                      className="w-full px-8 py-3 text-white rounded-md transition font-medium"
-                      style={{ backgroundColor: 'var(--accent)' }}
-                    >
-                      Send Message
-                    </button>
+              ) : (
+                <div className="w-full h-32 sm:h-48" style={{ backgroundColor: 'var(--bg-primary)' }}></div>
+              )}
+              
+              <div className="p-6 sm:p-10">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-8">
+                  {/* Avatar Section */}
+                  <div className="flex-shrink-0" style={{ marginTop: '-5rem' }}>
+                    {profile.avatar ? (
+                      <img
+                        src={profile.avatar}
+                        alt={profile.username}
+                        className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4"
+                        style={{ borderColor: profile.themeColor || 'var(--accent)', backgroundColor: 'var(--bg-secondary)' }}
+                      />
+                    ) : (
+                      <div 
+                        className="w-32 h-32 sm:w-40 sm:h-40 rounded-full flex items-center justify-center text-white text-5xl font-bold border-4" 
+                        style={{ backgroundColor: profile.themeColor || 'var(--accent)', borderColor: 'var(--bg-secondary)' }}
+                      >
+                        {profile.username.charAt(0).toUpperCase()}
+                      </div>
+                    )}
                   </div>
-                )}
+
+                  {/* User Info */}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <h1 className="text-3xl sm:text-4xl font-bold" style={{ color: 'var(--text-primary)' }}>
+                        {profile.nickname || profile.username}
+                      </h1>
+                      {profile.country && (
+                        <span className="text-3xl" title={countries.find(c => c.code === profile.country)?.name}>
+                          {getCountryFlag(profile.country)}
+                        </span>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center gap-3 mt-1 flex-wrap">
+                      <p className="text-lg font-medium" style={{ color: 'var(--text-secondary)' }}>
+                        @{profile.username}
+                      </p>
+                      {profile.pronouns && (
+                        <span className="px-3 py-1 rounded-full text-sm font-medium" style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-secondary)' }}>
+                          {profile.pronouns}
+                        </span>
+                      )}
+                      {profile.isFriend && (
+                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold" style={{ backgroundColor: 'var(--success)', color: 'white' }}>
+                          ✓ Friends
+                        </span>
+                      )}
+                    </div>
+                    
+                    {profile.status && (
+                      <p className="mt-2 text-base font-medium italic" style={{ color: profile.themeColor || 'var(--accent)' }}>
+                        "{profile.status}"
+                      </p>
+                    )}
+                    
+                    <p className="mt-3 text-base" style={{ color: 'var(--text-secondary)' }}>
+                      {profile.bio || 'No bio yet'}
+                    </p>
+                    
+                    {/* Location, Birthday, and Website */}
+                    <div className="flex items-center gap-4 mt-4 flex-wrap text-sm font-medium" style={{ color: 'var(--text-tertiary)' }}>
+                      {profile.city && (
+                        <div className="flex items-center gap-1">
+                          <span>📍</span>
+                          <span>{profile.city}</span>
+                        </div>
+                      )}
+                      {profile.birthday && (
+                        <div className="flex items-center gap-1">
+                          <span>🎂</span>
+                          <span>{profile.birthday}</span>
+                        </div>
+                      )}
+                      {profile.website && (
+                        <a 
+                          href={profile.website.startsWith('http') ? profile.website : `https://${profile.website}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 hover:underline"
+                          style={{ color: profile.themeColor || 'var(--accent)' }}
+                        >
+                          <span>🔗</span>
+                          <span>{profile.website}</span>
+                        </a>
+                      )}
+                      <div className="flex items-center gap-1">
+                        <span>📅</span>
+                        <span>Joined {new Date(profile.createdAt).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+
+                    {/* Social Links */}
+                    {profile.socialLinks && (() => {
+                      try {
+                        const links = JSON.parse(profile.socialLinks) as SocialLinks;
+                        const hasLinks = Object.values(links).some(v => v);
+                        if (hasLinks) {
+                          return (
+                            <div className="flex items-center gap-4 mt-4">
+                              {links.twitter && (
+                                <a href={`https://twitter.com/${links.twitter}`} target="_blank" rel="noopener noreferrer" className="text-2xl hover:opacity-70 transition">
+                                  𝕏
+                                </a>
+                              )}
+                              {links.github && (
+                                <a href={`https://github.com/${links.github}`} target="_blank" rel="noopener noreferrer" className="text-2xl hover:opacity-70 transition">
+                                  🐙
+                                </a>
+                              )}
+                              {links.instagram && (
+                                <a href={`https://instagram.com/${links.instagram}`} target="_blank" rel="noopener noreferrer" className="text-2xl hover:opacity-70 transition">
+                                  📷
+                                </a>
+                              )}
+                              {links.linkedin && (
+                                <a href={`https://linkedin.com/in/${links.linkedin}`} target="_blank" rel="noopener noreferrer" className="text-2xl hover:opacity-70 transition">
+                                  💼
+                                </a>
+                              )}
+                            </div>
+                          );
+                        }
+                      } catch {}
+                      return null;
+                    })()}
+
+                    {/* Interests */}
+                    {profile.interests && (() => {
+                      try {
+                        const interests = JSON.parse(profile.interests) as string[];
+                        if (interests.length > 0) {
+                          return (
+                            <div className="flex flex-wrap gap-2 mt-4">
+                              {interests.map((interest, idx) => (
+                                <span 
+                                  key={idx}
+                                  className="px-3 py-1 rounded-full text-sm font-medium"
+                                  style={{ backgroundColor: profile.themeColor || 'var(--accent)', color: '#fff' }}
+                                >
+                                  {interest}
+                                </span>
+                              ))}
+                            </div>
+                          );
+                        }
+                      } catch {}
+                      return null;
+                    })()}
+                  </div>
+
+                  {/* Action Buttons */}
+                  {profile.isFriend && (
+                    <div className="flex flex-col gap-3 w-full sm:w-auto">
+                      <button
+                        onClick={handleSendMessage}
+                        className="w-full px-8 py-3 text-white rounded-md transition font-medium"
+                        style={{ backgroundColor: profile.themeColor || 'var(--accent)' }}
+                      >
+                        Send Message
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 

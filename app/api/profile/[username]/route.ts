@@ -25,7 +25,17 @@ export async function GET(
         nickname: true,
         bio: true,
         avatar: true,
+        banner: true,
         createdAt: true,
+        country: true,
+        city: true,
+        pronouns: true,
+        birthday: true,
+        website: true,
+        socialLinks: true,
+        status: true,
+        themeColor: true,
+        interests: true,
         // Don't include email or lastUsernameChange for other users
       },
     });
