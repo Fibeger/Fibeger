@@ -923,8 +923,11 @@ function MessagesContent() {
 
   if (status === "loading" || loading) {
     return (
-      <div className="flex-1 flex items-center justify-center" style={{ backgroundColor: '#313338' }}>
-        <p className="text-xl font-semibold" style={{ color: '#949ba4' }}>Loading...</p>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4" style={{ borderColor: 'var(--accent)', borderTopColor: 'var(--text-primary)' }}></div>
+          <p className="mt-6 text-xl font-semibold" style={{ color: 'var(--text-secondary)' }}>Loading messages...</p>
+        </div>
       </div>
     );
   }
@@ -1755,8 +1758,11 @@ function MessagesContent() {
 export default function MessagesPage() {
   return (
     <Suspense fallback={
-      <div className="flex-1 flex items-center justify-center" style={{ backgroundColor: '#313338' }}>
-        <p className="text-xl font-semibold" style={{ color: '#949ba4' }}>Loading...</p>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4" style={{ borderColor: 'var(--accent)', borderTopColor: 'var(--text-primary)' }}></div>
+          <p className="mt-6 text-xl font-semibold" style={{ color: 'var(--text-secondary)' }}>Loading messages...</p>
+        </div>
       </div>
     }>
       <MessagesContent />

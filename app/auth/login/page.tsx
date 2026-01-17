@@ -49,7 +49,7 @@ export default function LoginPage() {
           }}
         >
           <h1 className="mb-2 text-center text-3xl font-bold">
-            Dicsord
+            Fibeger
           </h1>
           <h2 className="mb-6 text-center text-lg font-semibold" style={{ color: 'var(--text-secondary)' }}>
             Sign In

@@ -219,10 +219,10 @@ export default function FeedPage() {
 
   if (status === "loading" || loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-t-transparent" style={{ borderColor: '#5865f2' }}></div>
-          <p className="mt-4 text-lg" style={{ color: '#949ba4' }}>Loading...</p>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4" style={{ borderColor: 'var(--accent)', borderTopColor: 'var(--text-primary)' }}></div>
+          <p className="mt-6 text-xl font-semibold" style={{ color: 'var(--text-secondary)' }}>Loading feed...</p>
         </div>
       </div>
     );

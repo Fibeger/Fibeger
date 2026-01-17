@@ -5,6 +5,7 @@ import { Providers } from "./providers";
 import Sidebar from "./components/Sidebar";
 import { SidebarProvider } from "./context/SidebarContext";
 import MobileHeader from "./components/MobileHeader";
+import { headers } from "next/headers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -17,15 +18,19 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Dicsord - Social Media",
-  description: "Share your moments with Dicsord",
+  title: "Fibeger - Social Media",
+  description: "Share your moments with Fibeger",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const headersList = await headers();
+  const pathname = headersList.get("x-pathname") || "";
+  const isAuthPage = pathname.startsWith("/auth");
+
   return (
     <html lang="en">
       <head>
@@ -38,13 +43,19 @@ export default function RootLayout({
       >
         <a href="#main-content" className="skip-link">Skip to main content</a>
         <Providers>
-          <SidebarProvider>
-            <MobileHeader />
-            <Sidebar />
-            <main id="main-content" role="main" className="ml-0 lg:ml-60 transition-all duration-300" style={{ backgroundColor: '#313338' }}>
+          {isAuthPage ? (
+            <main id="main-content" role="main" style={{ backgroundColor: '#313338' }}>
               {children}
             </main>
-          </SidebarProvider>
+          ) : (
+            <SidebarProvider>
+              <MobileHeader />
+              <Sidebar />
+              <main id="main-content" role="main" className="ml-0 lg:ml-60 transition-all duration-300" style={{ backgroundColor: '#313338' }}>
+                {children}
+              </main>
+            </SidebarProvider>
+          )}
         </Providers>
       </body>
     </html>

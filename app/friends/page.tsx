@@ -27,6 +27,7 @@ export default function FriendsPage() {
   const [friends, setFriends] = useState<UserPreview[]>([]);
   const [message, setMessage] = useState('');
   const [searching, setSearching] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!session) {
@@ -59,6 +60,8 @@ export default function FriendsPage() {
       }
     } catch (error) {
       console.error('Failed to load friends');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -156,6 +159,17 @@ export default function FriendsPage() {
       setTimeout(() => setMessage(''), 3000);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4" style={{ borderColor: 'var(--accent)', borderTopColor: 'var(--text-primary)' }}></div>
+          <p className="mt-6 text-xl font-semibold" style={{ color: 'var(--text-secondary)' }}>Loading friends...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">

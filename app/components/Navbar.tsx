@@ -23,12 +23,12 @@ export default function Navbar() {
           <Link 
             href="/feed" 
             className="flex items-center gap-3 group rounded-lg focus:outline-2 focus:outline-yellow-400 focus:outline-offset-2"
-            aria-label="Dicsord - Home"
+            aria-label="Fibeger - Home"
           >
             <div className="w-10 h-10 bg-gradient-to-br from-slate-400 to-slate-600 rounded-lg flex items-center justify-center shadow-md group-hover:shadow-lg group-hover:shadow-blue-500/50 transition-all" aria-hidden="true">
               <span className="text-white font-bold text-lg">D</span>
             </div>
-            <span className="font-bold text-xl hidden sm:inline text-slate-100">Dicsord</span>
+            <span className="font-bold text-xl hidden sm:inline text-slate-100">Fibeger</span>
           </Link>
 
           {/* Navigation Links */}

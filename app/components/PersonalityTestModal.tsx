@@ -139,13 +139,13 @@ export default function PersonalityTestModal({
         {loading ? (
           <div className="text-center py-12">
             <div
-              className="inline-block animate-spin rounded-full h-12 w-12 border-4 mb-4"
+              className="inline-block animate-spin rounded-full h-12 w-12 border-4"
               style={{
                 borderColor: themeColor,
-                borderTopColor: 'transparent',
+                borderTopColor: 'var(--text-primary)',
               }}
             ></div>
-            <p style={{ color: 'var(--text-secondary)' }}>Loading test...</p>
+            <p className="mt-6 text-xl font-semibold" style={{ color: 'var(--text-secondary)' }}>Loading test...</p>
           </div>
         ) : result ? (
           // Results screen
