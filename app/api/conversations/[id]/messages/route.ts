@@ -131,6 +131,31 @@ export async function POST(
       data: { updatedAt: new Date() },
     });
 
+    // Get all conversation members except sender
+    const members = await prisma.conversationMember.findMany({
+      where: {
+        conversationId,
+        userId: { not: userId },
+      },
+      select: { userId: true },
+    });
+
+    // Create notifications for other members
+    const senderName = message.sender.nickname || message.sender.username;
+    const notificationPromises = members.map((member) =>
+      prisma.notification.create({
+        data: {
+          userId: member.userId,
+          type: "message",
+          title: "New Message",
+          message: `${senderName}: ${content.substring(0, 50)}${content.length > 50 ? "..." : ""}`,
+          link: `/messages?conversation=${conversationId}`,
+        },
+      })
+    );
+
+    await Promise.all(notificationPromises);
+
     return NextResponse.json(message);
   } catch (error) {
     console.error("Create message error:", error);

@@ -161,6 +161,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Get sender info
+    const sender = await prisma.user.findUnique({
+      where: { id: senderId },
+      select: { username: true, nickname: true },
+    });
+
     // Create friend request
     const friendRequest = await prisma.friendRequest.create({
       data: {
@@ -176,6 +182,17 @@ export async function POST(req: NextRequest) {
             avatar: true,
           },
         },
+      },
+    });
+
+    // Create notification for receiver
+    await prisma.notification.create({
+      data: {
+        userId: receiver.id,
+        type: "friend_request",
+        title: "New Friend Request",
+        message: `${sender?.nickname || sender?.username} sent you a friend request`,
+        link: "/friends",
       },
     });
 

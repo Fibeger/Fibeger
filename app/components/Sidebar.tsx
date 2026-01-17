@@ -45,6 +45,11 @@ export default function Sidebar() {
   const [friends, setFriends] = useState<User[]>([]);
   const [showNewConversation, setShowNewConversation] = useState(false);
   const [creatingConversation, setCreatingConversation] = useState(false);
+  const [showNewGroup, setShowNewGroup] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
+  const [newGroupDescription, setNewGroupDescription] = useState('');
+  const [selectedFriends, setSelectedFriends] = useState<number[]>([]);
+  const [creatingGroup, setCreatingGroup] = useState(false);
 
   useEffect(() => {
     if (session) {
@@ -132,6 +137,53 @@ export default function Sidebar() {
       return otherUser?.id;
     });
     return friends.filter(friend => !conversationFriendIds.includes(friend.id));
+  };
+
+  const handleCreateGroup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newGroupName.trim()) {
+      alert('Please enter a group name');
+      return;
+    }
+
+    setCreatingGroup(true);
+    try {
+      const res = await fetch('/api/groupchats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newGroupName,
+          description: newGroupDescription || null,
+          memberIds: selectedFriends,
+        }),
+      });
+
+      if (res.ok) {
+        const group = await res.json();
+        await fetchGroupChats();
+        setShowNewGroup(false);
+        setNewGroupName('');
+        setNewGroupDescription('');
+        setSelectedFriends([]);
+        router.push(`/messages?group=${group.id}`);
+      } else {
+        const error = await res.json();
+        alert(error.error || 'Failed to create group');
+      }
+    } catch (error) {
+      console.error('Failed to create group');
+      alert('Failed to create group');
+    } finally {
+      setCreatingGroup(false);
+    }
+  };
+
+  const toggleFriendSelection = (friendId: number) => {
+    setSelectedFriends(prev =>
+      prev.includes(friendId)
+        ? prev.filter(id => id !== friendId)
+        : [...prev, friendId]
+    );
   };
 
   if (!session) {
@@ -344,11 +396,11 @@ export default function Sidebar() {
 
         {/* Groups Accordion */}
         <div className="mt-4">
-          <button
-            onClick={() => setShowGroups(!showGroups)}
-            className="w-full flex items-center justify-between px-2 py-1.5 rounded hover:bg-gray-700 transition"
-          >
-            <div className="flex items-center gap-2">
+          <div className="w-full flex items-center justify-between px-2 py-1.5 rounded hover:bg-gray-700 transition">
+            <button
+              onClick={() => setShowGroups(!showGroups)}
+              className="flex items-center gap-2 flex-1"
+            >
               <span 
                 className="text-xs transition-transform"
                 style={{ color: '#949ba4', transform: showGroups ? 'rotate(90deg)' : 'rotate(0deg)' }}
@@ -358,8 +410,103 @@ export default function Sidebar() {
               <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: '#949ba4' }}>
                 Groups
               </span>
+            </button>
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowNewGroup(!showNewGroup);
+              }}
+              className="text-lg hover:text-white transition" 
+              style={{ color: '#949ba4' }}
+              title="Create a group"
+            >
+              +
+            </button>
+          </div>
+
+          {showNewGroup && (
+            <div className="px-2 py-2 mb-2" style={{ backgroundColor: '#1e1f22', borderRadius: '4px' }}>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold" style={{ color: '#f2f3f5' }}>Create Group</span>
+                <button
+                  onClick={() => {
+                    setShowNewGroup(false);
+                    setNewGroupName('');
+                    setNewGroupDescription('');
+                    setSelectedFriends([]);
+                  }}
+                  className="text-lg hover:text-white transition"
+                  style={{ color: '#949ba4' }}
+                >
+                  ×
+                </button>
+              </div>
+              <form onSubmit={handleCreateGroup} className="space-y-2">
+                <input
+                  type="text"
+                  placeholder="Group Name"
+                  value={newGroupName}
+                  onChange={(e) => setNewGroupName(e.target.value)}
+                  className="w-full px-2 py-1 rounded text-sm"
+                  style={{ backgroundColor: '#383a40', color: '#f2f3f5', border: 'none', outline: 'none' }}
+                  required
+                />
+                <textarea
+                  placeholder="Description (optional)"
+                  value={newGroupDescription}
+                  onChange={(e) => setNewGroupDescription(e.target.value)}
+                  className="w-full px-2 py-1 rounded text-sm resize-none"
+                  style={{ backgroundColor: '#383a40', color: '#f2f3f5', border: 'none', outline: 'none' }}
+                  rows={2}
+                />
+                {friends.length > 0 && (
+                  <div>
+                    <p className="text-xs mb-1" style={{ color: '#949ba4' }}>Add Friends (optional)</p>
+                    <div className="space-y-1 max-h-32 overflow-y-auto">
+                      {friends.map((friend) => (
+                        <label
+                          key={friend.id}
+                          className="flex items-center gap-2 p-1 rounded hover:bg-gray-700 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedFriends.includes(friend.id)}
+                            onChange={() => toggleFriendSelection(friend.id)}
+                            className="cursor-pointer"
+                          />
+                          {friend.avatar ? (
+                            <img
+                              src={friend.avatar}
+                              alt={friend.username}
+                              className="w-5 h-5 rounded-full"
+                            />
+                          ) : (
+                            <div
+                              className="w-5 h-5 rounded-full flex items-center justify-center text-white font-semibold text-xs"
+                              style={{ backgroundColor: '#5865f2' }}
+                            >
+                              {friend.username.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                          <span className="text-xs truncate" style={{ color: '#f2f3f5' }}>
+                            {friend.nickname || friend.username}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <button
+                  type="submit"
+                  disabled={creatingGroup}
+                  className="w-full py-1.5 rounded text-sm font-semibold hover:brightness-90 transition"
+                  style={{ backgroundColor: '#5865f2', color: '#ffffff' }}
+                >
+                  {creatingGroup ? 'Creating...' : 'Create Group'}
+                </button>
+              </form>
             </div>
-          </button>
+          )}
 
           {showGroups && (
             <div className="mt-1 space-y-0.5">

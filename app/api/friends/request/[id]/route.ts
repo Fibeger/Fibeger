@@ -91,6 +91,12 @@ export async function PUT(
     }
 
     if (action === "accept") {
+      // Get user info for notification
+      const accepter = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { username: true, nickname: true },
+      });
+
       // Create friend relationship (bidirectional)
       await Promise.all([
         prisma.friend.create({
@@ -103,6 +109,16 @@ export async function PUT(
           data: {
             userId: friendRequest.receiverId,
             friendId: friendRequest.senderId,
+          },
+        }),
+        // Create notification for sender
+        prisma.notification.create({
+          data: {
+            userId: friendRequest.senderId,
+            type: "friend_request",
+            title: "Friend Request Accepted",
+            message: `${accepter?.nickname || accepter?.username} accepted your friend request`,
+            link: "/friends",
           },
         }),
       ]);
