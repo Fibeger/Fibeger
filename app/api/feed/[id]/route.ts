@@ -6,7 +6,7 @@ import { prisma } from '@/app/lib/prisma';
 // DELETE - Delete a feed post (only the author can delete)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -15,7 +15,8 @@ export async function DELETE(
     }
 
     const userId = parseInt((session.user as any).id);
-    const postId = parseInt(params.id);
+    const resolvedParams = await Promise.resolve(params);
+    const postId = parseInt(resolvedParams.id);
 
     // Check if post exists and belongs to the user
     const post = await prisma.feedPost.findUnique({

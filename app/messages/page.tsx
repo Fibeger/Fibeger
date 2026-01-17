@@ -459,7 +459,9 @@ function MessagesContent() {
 
       if (res.ok) {
         const data = await res.json();
-        setAttachments((prev) => [...prev, ...data.files]);
+        // Handle both single file and multiple files response formats
+        const uploadedFiles = data.files || [data];
+        setAttachments((prev) => [...prev, ...uploadedFiles]);
       } else {
         const error = await res.json();
         alert(error.error || 'Failed to upload files');

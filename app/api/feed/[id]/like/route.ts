@@ -6,7 +6,7 @@ import { prisma } from '@/app/lib/prisma';
 // POST - Like/Unlike a feed post
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -15,7 +15,8 @@ export async function POST(
     }
 
     const userId = parseInt((session.user as any).id);
-    const postId = parseInt(params.id);
+    const resolvedParams = await Promise.resolve(params);
+    const postId = parseInt(resolvedParams.id);
 
     // Check if post exists
     const post = await prisma.feedPost.findUnique({
