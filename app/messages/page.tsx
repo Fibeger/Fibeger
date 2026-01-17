@@ -122,7 +122,7 @@ interface GroupChat {
 }
 
 function MessagesContent() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
   const dmId = searchParams.get('dm');
@@ -155,8 +155,12 @@ function MessagesContent() {
 
   // Initial fetch (no polling!)
   useEffect(() => {
-    if (!session) {
+    if (status === "unauthenticated") {
       router.push('/auth/login');
+      return;
+    }
+
+    if (status === "loading" || !session) {
       return;
     }
 
@@ -171,7 +175,7 @@ function MessagesContent() {
       fetchGroupChat(parseInt(groupId));
       fetchFriends();
     }
-  }, [session, router, dmId, groupId]);
+  }, [status, session, router, dmId, groupId]);
 
   // Subscribe to real-time message events
   useEffect(() => {
@@ -792,7 +796,7 @@ function MessagesContent() {
     }
   };
 
-  if (loading) {
+  if (status === "loading" || loading) {
     return (
       <div className="flex-1 flex items-center justify-center" style={{ backgroundColor: '#313338' }}>
         <p className="text-xl font-semibold" style={{ color: '#949ba4' }}>Loading...</p>
