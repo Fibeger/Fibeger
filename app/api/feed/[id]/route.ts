@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import prisma from '@/app/lib/prisma';
+import { prisma } from '@/app/lib/prisma';
 
 // DELETE - Delete a feed post (only the author can delete)
 export async function DELETE(
