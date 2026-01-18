@@ -128,5 +128,6 @@ export function useStoreSync() {
       unsubFriendRemoved();
       unsubConversationUpdate();
     };
-  }, [on, friendsStore, messagesStore, feedStore, notificationsStore]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [on]); // Only depend on 'on' - stores are stable Zustand stores
 }

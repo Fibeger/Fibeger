@@ -47,6 +47,10 @@ function BrowserNotificationsContent() {
     console.log('[Sound] Setting up sound subscription for user:', currentUserId);
     
     const handleMessage = (event: any) => {
+      // Get current route info dynamically to avoid re-subscriptions
+      const currentPathname = window.location.pathname;
+      const currentSearchParams = new URLSearchParams(window.location.search);
+      
       console.log('[Sound] Received message event:', {
         conversationId: event.data.conversationId,
         groupChatId: event.data.groupChatId,
@@ -65,8 +69,8 @@ function BrowserNotificationsContent() {
       }
 
       // Check if we're currently viewing the chat that this message is from
-      const isOnMessagesPage = pathname === '/messages';
-      console.log('[Sound] Current page:', pathname, 'isOnMessagesPage:', isOnMessagesPage);
+      const isOnMessagesPage = currentPathname === '/messages';
+      console.log('[Sound] Current page:', currentPathname, 'isOnMessagesPage:', isOnMessagesPage);
       
       if (!isOnMessagesPage) {
         // Not on messages page, always play sound
@@ -76,8 +80,8 @@ function BrowserNotificationsContent() {
       }
 
       // On messages page - check if viewing the specific chat
-      const currentDmId = searchParams?.get('dm');
-      const currentGroupId = searchParams?.get('group');
+      const currentDmId = currentSearchParams.get('dm');
+      const currentGroupId = currentSearchParams.get('group');
       console.log('[Sound] Current chat params:', { currentDmId, currentGroupId, messageConvId, messageGroupId });
 
       const isViewingThisChat = 
@@ -102,7 +106,8 @@ function BrowserNotificationsContent() {
       console.log('[Sound] Unsubscribing from message events');
       unsubscribe();
     };
-  }, [on, playSound, session?.user?.id, pathname, searchParams]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [on, session?.user?.id]); // Remove pathname and searchParams to avoid re-subscriptions
 
   // This component doesn't render anything
   return null;

@@ -81,6 +81,8 @@ function MessagesContent() {
     groupChats,
     messages: messagesMap,
     typingUsers: typingUsersMap,
+    fetchConversations,
+    fetchGroupChats,
     fetchMessages,
     addMessage,
     updateMessage,
@@ -132,17 +134,20 @@ function MessagesContent() {
       return;
     }
 
-    if (!dmId && !groupId) {
-      setLoading(false);
-      return;
-    }
-
     const loadData = async () => {
+      // Always fetch conversations and group chats to populate the store
+      await Promise.all([
+        fetchConversations(),
+        fetchGroupChats(),
+      ]);
+
+      // If viewing a specific chat, fetch its messages
       if (chatId) {
         await fetchMessages(chatId, dmId ? 'dm' : 'group');
         markAsRead(chatId, dmId ? 'dm' : 'group');
       }
       
+      // Fetch friends if viewing a group (for adding members)
       if (groupId) {
         fetchFriends();
       }
@@ -151,7 +156,7 @@ function MessagesContent() {
     };
 
     loadData();
-  }, [status, session, router, dmId, groupId, chatId, fetchMessages, fetchFriends]);
+  }, [status, session, router, dmId, groupId, chatId, fetchConversations, fetchGroupChats, fetchMessages, fetchFriends]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
