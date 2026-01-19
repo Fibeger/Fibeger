@@ -5,6 +5,8 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y python3 build-essential && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json* prisma/ ./
+# Copy the production schema as the expected schema.prisma for Prisma
+RUN cp prisma/schema.production.prisma prisma/schema.prisma
 RUN npm install --legacy-peer-deps
 
 COPY . .
