@@ -34,7 +34,7 @@ export async function uploadToS3(filename: string, data: Buffer, contentType: st
 
   // Construct public URL. Allow override via S3_PUBLIC_URL for custom domains.
   if (process.env.S3_PUBLIC_URL) {
-    return `${process.env.S3_PUBLIC_URL.replace(/\/$/, '')}/${filename}`;
+    return `${process.env.S3_PUBLIC_URL.replace(/\/$/, '')}/${bucket}/${filename}`;
   }
 
   // If custom endpoint, use it; else, use standard AWS S3 URL format
