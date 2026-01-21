@@ -1,4 +1,3 @@
-# Replace 'yourdomain.com' with your actual domain
 fibeger.com {
     reverse_proxy app:3000
     handle_path /minio/* {

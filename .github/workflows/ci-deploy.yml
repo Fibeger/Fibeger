@@ -2,55 +2,91 @@ name: Build and Deploy to Podman Server
 
 on:
   push:
-    branches: [ main, mainline, master ]
+    branches: [main]
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    outputs:
+      image_ref: ${{ steps.meta.outputs.image_ref }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
 
       - name: Log in to GHCR
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GHCR_PAT }}
 
+      - name: Define image reference
+        id: meta
+        run: |
+          echo "image_ref=ghcr.io/${{ github.repository }}:${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
       - name: Build and push image
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v6
         with:
           context: .
           push: true
-          tags: ghcr.io/${{ github.repository }}:${{ github.sha }}
+          tags: ${{ steps.meta.outputs.image_ref }}
 
   deploy:
     runs-on: ubuntu-latest
-    needs: build-and-push
+    needs: [build-and-push]
+    env:
+      IMAGE_REF: ${{ needs.build-and-push.outputs.image_ref }}
+      # Set this to your Tailscale IP or MagicDNS name:
+      SERVER_TS_HOST: 100.119.236.64
+      # Directory on the remote Fedora server where your stack lives:
+      REMOTE_COMPOSE_DIR: /opt/fibeger
     steps:
-      - name: Deploy to server via SSH
-        uses: appleboy/ssh-action@v0.1.7
+      - name: Connect to Tailscale (ephemeral, tagged)
+        uses: tailscale/github-action@v4
         with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          port: ${{ secrets.SERVER_SSH_PORT || '22' }}
-          script: |
-            set -e
-            echo "Pulling image"
-            podman pull ghcr.io/${{ github.repository }}:${{ github.sha }}
-            # Update docker-compose file to use the new image tag (assumes compose file at REMOTE_COMPOSE_DIR)
-            cd ${REMOTE_COMPOSE_DIR:-/opt/fibeger} || true
-            # If using podman-compose, restart the stack
-            if command -v podman-compose >/dev/null 2>&1; then
-              podman-compose pull || true
-              podman-compose up -d --remove-orphans
-            else
-              # fallback: run podman container directly
-              podman stop fibeger || true || true
-              podman rm fibeger || true || true
-              podman run -d --name fibeger -p 3000:3000 --env-file .env --restart=always ghcr.io/${{ github.repository }}:${{ github.sha }}
-            fi
+          oauth-client-id: ${{ secrets.TAILSCALE_ID }}
+          oauth-secret: ${{ secrets.TAILSCALE_SECRET }}
+          tags: tag:ci
+
+      - name: Wait for tailnet propagation (optional)
+        run: sleep 5
+
+      # Everything below runs on the REMOTE host via Tailscale SSH:
+      - name: Remote deploy via Tailscale SSH (Podman)
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Use Tailscale SSH (no key files needed). The remote user must exist (e.g., 'deploy').
+          # If you need sudo for Podman, allow it for this user or prefix commands with sudo.
+          tailscale ssh deploy@${SERVER_TS_HOST} bash -s -- <<'REMOTE_EOF'
+          set -euo pipefail
+
+          echo "Pulling image: ${IMAGE_REF}"
+          podman pull "${IMAGE_REF}"
+
+          # If you use podman-compose:
+          if command -v podman-compose >/dev/null 2>&1; then
+            cd "${REMOTE_COMPOSE_DIR}"
+            # update image ref in compose file only if needed; otherwise just pull/up
+            podman-compose pull || true
+            podman-compose up -d --remove-orphans
+          else
+            # Fallback: single-container run
+            echo "Restarting single Podman container: fibeger"
+            podman stop fibeger || true
+            podman rm fibeger || true
+            # Adjust ports/env-file as required for your Next.js app
+            podman run -d --name fibeger \
+              -p 3000:3000 \
+              --env-file "${REMOTE_COMPOSE_DIR}/.env" \
+              --restart=always \
+              "${IMAGE_REF}"
+          fi
+          REMOTE_EOF
+        env:
+          IMAGE_REF: ${{ env.IMAGE_REF }}
+          REMOTE_COMPOSE_DIR: ${{ env.REMOTE_COMPOSE_DIR }}

@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 services:
   db:
     image: postgres:18
@@ -52,7 +52,7 @@ services:
       - fib-net
 
   app:
-    build: .
+    image: ${IMAGE_REF}
     restart: unless-stopped
     environment:
       NODE_ENV: production
@@ -61,11 +61,11 @@ services:
       PORT: 3000
       DATABASE_URL: postgres://${ADMIN_USER}:${ADMIN_PASSWORD}@db:5432/fibeger
       S3_ENDPOINT: http://minio:9000
-      S3_PUBLIC_URL: https://fibeger.com/minio  # Assuming you proxy minio through Caddy
+      S3_PUBLIC_URL: https://fibeger.com/minio # Assuming you proxy minio through Caddy
       S3_BUCKET: fibeger
       S3_ACCESS_KEY_ID: ${ADMIN_USER}
       S3_SECRET_ACCESS_KEY: ${ADMIN_PASSWORD}
-      S3_USE_TLS: "false"  # Keep false since internal
+      S3_USE_TLS: "false" # Keep false since internal
     depends_on:
       db:
         condition: service_healthy
