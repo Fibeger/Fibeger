@@ -22,17 +22,25 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GHCR_PAT }}
 
-      - name: Define image reference
-        id: meta
+      # - name: Define image reference
+      #   id: meta
+      #   run: |
+      #     echo "image_ref=ghcr.io/${{ github.repository }}:${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare lowercase image reference
+        id: img
         run: |
-          echo "image_ref=ghcr.io/${{ github.repository,, }}:${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          # ${GITHUB_REPOSITORY} is "OwnerName/RepoName"
+          REPO_LC="${GITHUB_REPOSITORY,,}"           # bash lowercasing
+          echo "REPO_LC=$REPO_LC" >> "$GITHUB_ENV"
+          echo "IMAGE_REF=ghcr.io/${REPO_LC}:${GITHUB_SHA}" >> "$GITHUB_ENV"
 
       - name: Build and push image
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.image_ref }}
+          tags: ${{ env.IMAGE_REF }}
 
   deploy:
     runs-on: ubuntu-latest
