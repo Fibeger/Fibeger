@@ -34,7 +34,7 @@ services:
     networks: [fib-net]
 
   pgadmin:
-    image: dpage/pgadmin4
+    image: docker.io/dpage/pgadmin4
     restart: unless-stopped
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@fibeger.com
@@ -68,7 +68,7 @@ services:
         condition: service_healthy
 
   caddy:
-    image: caddy:2-alpine
+    image: docker.io/library/caddy:2-alpine
     restart: unless-stopped
     # Publish ONLY to loopback so cloudflared can reach it locally
     ports:
