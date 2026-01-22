@@ -84,6 +84,14 @@ jobs:
 
           cd "${REMOTE_COMPOSE_DIR}"
 
+          # Pull latest changes from git if this is a git repository
+          if [ -d .git ]; then
+            echo "Pulling latest changes from git..."
+            git pull origin main
+          else
+            echo "Warning: Not a git repository, docker-compose.yml may be outdated"
+          fi
+
           # Update the IMAGE_REF in .env file
           sed -i "s|^IMAGE_REF=.*|IMAGE_REF=${IMAGE_REF}|" .env
 
