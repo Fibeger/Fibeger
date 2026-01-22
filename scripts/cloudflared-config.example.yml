@@ -15,7 +15,7 @@ tunnel: 7c5c8b57-53a9-4db3-b124-9e86a19bc40d
 
 # Replace YOUR_USERNAME with your server username
 # The credentials file is created automatically when you create the tunnel
-credentials-file: /home/root/.cloudflared/7c5c8b57-53a9-4db3-b124-9e86a19bc40d.json
+credentials-file: /root/.cloudflared/7c5c8b57-53a9-4db3-b124-9e86a19bc40d.json
 
 # Ingress rules - define how traffic is routed
 ingress:
