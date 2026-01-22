@@ -7,10 +7,10 @@ encode zstd gzip
 
 # Preserve real client IP from Cloudflare
 
-header_up X-Real-IP {http.request.header.CF-Connecting-IP}
-header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
-header_up X-Forwarded-Proto {scheme}
-header_up Host {host}
+request_header X-Real-IP {http.request.header.CF-Connecting-IP}
+request_header X-Forwarded-For {http.request.header.CF-Connecting-IP}
+request_header X-Forwarded-Proto {scheme}
+request_header Host {host}
 
 # MinIO console (subdomain)
 
