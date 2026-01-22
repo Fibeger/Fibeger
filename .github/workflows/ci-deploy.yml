@@ -7,8 +7,12 @@ on:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    outputs:
-      image_ref: ${{ steps.meta.outputs.image_ref }}
+    permissions:
+      contents: read
+      packages: write
+
+    # outputs:
+    #   image_ref: ${{ steps.meta.outputs.image_ref }}
     steps:
       - uses: actions/checkout@v4
 
