@@ -69,31 +69,28 @@ jobs:
         run: sleep 5
 
       # Everything below runs on the REMOTE host via Tailscale SSH:
+      
       - name: Remote deploy via Tailscale SSH (Podman)
         shell: bash
         run: |
           set -euo pipefail
 
-          # Use Tailscale SSH (no key files needed). The remote user must exist (e.g., 'deploy').
-          # If you need sudo for Podman, allow it for this user or prefix commands with sudo.
-          tailscale ssh deploy@${SERVER_TS_HOST} bash -s -- <<'REMOTE_EOF'
+          # Export env variables into the remote shell invocation
+          tailscale ssh deploy@${SERVER_TS_HOST} \
+            "env IMAGE_REF='${IMAGE_REF}' REMOTE_COMPOSE_DIR='${REMOTE_COMPOSE_DIR}' bash -s" <<'REMOTE_EOF'
           set -euo pipefail
 
           echo "Pulling image: ${IMAGE_REF}"
           podman pull "${IMAGE_REF}"
 
-          # If you use podman-compose:
           if command -v podman-compose >/dev/null 2>&1; then
             cd "${REMOTE_COMPOSE_DIR}"
-            # update image ref in compose file only if needed; otherwise just pull/up
             podman-compose pull || true
             podman-compose up -d --remove-orphans
           else
-            # Fallback: single-container run
             echo "Restarting single Podman container: fibeger"
             podman stop fibeger || true
             podman rm fibeger || true
-            # Adjust ports/env-file as required for your Next.js app
             podman run -d --name fibeger \
               -p 3000:3000 \
               --env-file "${REMOTE_COMPOSE_DIR}/.env" \
@@ -102,5 +99,5 @@ jobs:
           fi
           REMOTE_EOF
         env:
-          IMAGE_REF: ${{ env.IMAGE_REF }}
+          IMAGE_REF: ${{ needs.build-and-push.outputs.image_ref }}
           REMOTE_COMPOSE_DIR: ${{ env.REMOTE_COMPOSE_DIR }}
