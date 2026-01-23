@@ -8,23 +8,26 @@ http://127.0.0.1:8080 {
 		format console
 	}
 	
-	encode zstd gzip
-
 	# Preserve real client IP from Cloudflare
 	request_header X-Real-IP {http.request.header.CF-Connecting-IP}
 	request_header X-Forwarded-For {http.request.header.CF-Connecting-IP}
 	request_header X-Forwarded-Proto {scheme}
 	request_header Host {host}
 
-	# MinIO console (subdomain)
-	@minioConsole host minio.fibeger.com
-	reverse_proxy @minioConsole minio:9001
-
-	# MinIO S3 API under /minio on apex
-	handle_path /minio/* {
-		reverse_proxy minio:9000
+	# Route all traffic
+	route {
+		# MinIO console (subdomain)
+		@minioConsole host minio.fibeger.com
+		reverse_proxy @minioConsole minio:9001
+		
+		# MinIO S3 API under /minio on apex
+		@minioAPI path /minio*
+		uri @minioAPI strip_prefix /minio
+		reverse_proxy @minioAPI minio:9000
+		
+		# Default: Next.js app (must be last)
+		reverse_proxy app:3000
 	}
-
-	# Default: Next.js app (catch-all)
-	reverse_proxy app:3000
+	
+	encode zstd gzip
 }
