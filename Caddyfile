@@ -3,6 +3,11 @@
 }
 
 http://127.0.0.1:8080 {
+	log {
+		output stdout
+		format console
+	}
+	
 	encode zstd gzip
 
 	# Preserve real client IP from Cloudflare
