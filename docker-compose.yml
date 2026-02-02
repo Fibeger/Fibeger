@@ -90,7 +90,7 @@ services:
     restart: unless-stopped
     # Publish ONLY to loopback so cloudflared can reach it locally
     ports:
-      - "127.0.0.1:8080:8080"
+      - "8080:8080"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
